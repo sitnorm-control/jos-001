@@ -81,6 +81,13 @@
     var d = document.createElement('div'); d.className = 'mark'; d.style.left = pos(tOf(s.f));
     d.innerHTML = '<span>' + s.f + '</span><i></i>'; dial.insertBefore(d, $('bandlbl'));
   });
+  // CONELRAD: sets sold 1953-63 carried the Civil Defense triangle at 640 and 1240
+  [640, 1240].forEach(function (f) {
+    var c = document.createElement('div'); c.className = 'cd'; c.style.left = pos(tOf(f)); c.setAttribute('aria-hidden', 'true');
+    c.innerHTML = '<svg width="20" height="18" viewBox="0 0 20 18"><polygon points="10,1.5 18.5,16.5 1.5,16.5" fill="none" stroke="#F2C200" stroke-width="1.4"/>' +
+      '<text x="10" y="14.2" text-anchor="middle" font-size="6.5" font-weight="700" fill="#F2C200" font-family="IBM Plex Mono, monospace">CD</text></svg>';
+    dial.insertBefore(c, $('bandlbl'));
+  });
 
   // ---- state --------------------------------------------------------------
   var savedVol = 0.6;
@@ -119,11 +126,31 @@
   }
   // Each station's sideband has its own clarifier sweet spot, and even the sweet spot is a hair off.
   function sweetSpot(f) { return 0.5 + (((f * 37) % 100) / 100 - 0.5) * 0.7; }
+  // iPhone: page-generated sound counts as "ambient" and the silent switch mutes it.
+  // Asking for a playback session (iOS 17+), or holding a looping silent media element (older iOS), makes it a radio, not a game.
+  var keepAlive = null;
+  function silentWavUrl() {
+    var rate = 8000, n = rate / 2, b = new ArrayBuffer(44 + n * 2), v = new DataView(b);
+    var w = function (o, str) { for (var i = 0; i < str.length; i++) v.setUint8(o + i, str.charCodeAt(i)); };
+    w(0, 'RIFF'); v.setUint32(4, 36 + n * 2, true); w(8, 'WAVE'); w(12, 'fmt '); v.setUint32(16, 16, true);
+    v.setUint16(20, 1, true); v.setUint16(22, 1, true); v.setUint32(24, rate, true); v.setUint32(28, rate * 2, true);
+    v.setUint16(32, 2, true); v.setUint16(34, 16, true); w(36, 'data'); v.setUint32(40, n * 2, true);
+    return URL.createObjectURL(new Blob([b], { type: 'audio/wav' }));
+  }
+  function holdPlaybackSession() {
+    try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) {}
+    try {
+      if (!keepAlive) { keepAlive = document.createElement('audio'); keepAlive.src = silentWavUrl(); keepAlive.loop = true; keepAlive.setAttribute('playsinline', ''); }
+      var pr = keepAlive.play(); if (pr && pr.catch) pr.catch(function () {});
+    } catch (e) {}
+  }
   function startAudio() {
     var AC = window.AudioContext || window.webkitAudioContext;
     if (!AC) return;
+    holdPlaybackSession();
     if (A) { try { A.ac.resume(); } catch (e) {} return; }
     var ac = new AC();
+    try { ac.resume(); } catch (e) {}
     var limiter = ac.createDynamicsCompressor(); limiter.threshold.value = -10; limiter.ratio.value = 12; limiter.connect(ac.destination);
     var sqGain = ac.createGain(); sqGain.gain.value = 1; sqGain.connect(limiter);
     var master = ac.createGain(); master.gain.value = 0; master.connect(sqGain);
@@ -196,6 +223,8 @@
     var lvl = ti.lockedOn ? 1 : (ti.bestD < 0.045 ? 1 - ti.bestD / 0.045 : 0);
     var live = S.power && S.audio && S.band !== 'L' && !S.monitor;
     var sb = S.mode !== 'AM';
+    // let go of the media session while the monitor (YouTube) has the floor; take it back when the radio returns
+    if (keepAlive) { if (S.monitor || !S.power) keepAlive.pause(); else if (keepAlive.paused) holdPlaybackSession(); }
     var vol = 0.14 * Math.pow(S.vol / 0.6, 2); // 60% on the knob = the old fixed level
     A.master.gain.setTargetAtTime(live ? vol : 0, now, 0.08);
     A.noiseGain.gain.setTargetAtTime(sb ? 0.35 - 0.12 * lvl : 0.9 - 0.6 * lvl, now, 0.08);
