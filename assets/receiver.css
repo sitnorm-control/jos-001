@@ -37,13 +37,17 @@ header p { margin: 4px 0 0; font-size: 13px; letter-spacing: 2px; color: #A9A493
 .dial .band { position: absolute; right: 12px; bottom: 8px; font-size: 11px; letter-spacing: 2px; color: #A9A493; }
 .dial .needle { position: absolute; top: 0; bottom: 0; width: 2px; background: #F2C200; box-shadow: 0 0 14px #F2C200; }
 
-.controls { display: flex; flex-wrap: wrap; gap: 28px; align-items: center; }
+.controls { display: flex; flex-wrap: wrap; gap: 22px; align-items: center; }
 .stack { display: flex; flex-direction: column; align-items: center; gap: 10px; }
 .knob { width: 132px; height: 132px; border-radius: 50%; border: 3px solid #5A574A; padding: 0; cursor: grab; touch-action: none; position: relative;
   background: repeating-conic-gradient(#2E2C24 0deg 6deg, #1C1B15 6deg 12deg); box-shadow: 0 6px 18px rgba(0,0,0,.6), inset 0 0 0 10px #17160F; }
 .knob .cap { position: absolute; inset: 22px; border-radius: 50%; background: #23221B; border: 1px solid #4A473C; }
 .knob .cap i { position: absolute; left: 50%; top: 6px; width: 4px; height: 26px; margin-left: -2px; border-radius: 2px; }
-.memory { display: flex; flex-direction: column; gap: 10px; flex: 1 1 320px; min-width: 0; }
+.smallknobs { display: flex; gap: 12px; align-items: flex-start; }
+.knob.sm { width: 72px; height: 72px; border-width: 2px; box-shadow: 0 4px 12px rgba(0,0,0,.6), inset 0 0 0 6px #17160F; cursor: ns-resize; }
+.knob.sm .cap { inset: 12px; }
+.knob.sm .cap i { top: 4px; width: 3px; height: 14px; margin-left: -1.5px; }
+.memory { display: flex; flex-direction: column; gap: 10px; flex: 1 1 240px; min-width: 0; }
 .row { display: flex; flex-wrap: wrap; gap: 8px; }
 .btn { min-height: 44px; padding: 0 14px; font-size: 14px; cursor: pointer; border: 1px solid #5A574A; background: #0E0E0C; color: #CFCABB; }
 .btn.on { background: #F2C200; color: #0E0E0C; }

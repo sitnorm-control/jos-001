@@ -33,6 +33,7 @@
 
   // ---- markup -------------------------------------------------------------
   var SYMBOL = '<svg width="64" height="64" viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="48" fill="#0E0E0C"/><circle cx="50" cy="50" r="44" fill="#F2C200"/><circle cx="50" cy="50" r="40" fill="#0E0E0C"/><polygon points="50,50 30,15.36 70,15.36" fill="#F2C200"/><polygon points="50,50 90,50 70,84.64" fill="#F2C200"/><polygon points="50,50 30,84.64 10,50" fill="#F2C200"/></svg>';
+  var SMALL_KNOBS = [{ id: 'vol', label: 'VOLUME' }, { id: 'sq', label: 'SQUELCH' }, { id: 'clr', label: 'CLARIFIER' }];
   var app = document.getElementById('app');
   app.innerHTML =
     '<div class="wrap"><div class="col">' +
@@ -45,6 +46,10 @@
       '</div>' +
       '<div class="controls">' +
         '<div class="stack"><button type="button" class="knob" id="knob" aria-label="Tuning knob. Drag to turn, or use the arrow keys."><div class="cap" id="cap"><i id="capmark"></i></div></button><span class="lbl">TUNING</span></div>' +
+        '<div class="smallknobs">' + SMALL_KNOBS.map(function (k) {
+          return '<div class="stack"><button type="button" class="knob sm" id="k-' + k.id + '" role="slider" aria-label="' + k.label + '. Drag up or down, scroll, or use the arrow keys." aria-valuemin="0" aria-valuemax="100"><div class="cap" id="kc-' + k.id + '"><i id="km-' + k.id + '"></i></div></button>' +
+            '<span class="lbl">' + k.label + '</span>' + (k.id === 'sq' ? '<div style="display:flex;align-items:center;gap:6px"><div class="lamp" id="busy"></div><span class="lbl" style="font-size:10px">BUSY</span></div>' : '') + '</div>';
+        }).join('') + '</div>' +
         '<div class="memory"><span class="lbl">MEMORY</span><div class="row" id="presets"></div></div>' +
         '<div class="stack" style="align-items:flex-start"><span class="lbl">SIDEBAND</span><div class="seg" id="modes"></div>' +
           '<button type="button" class="btn" id="audio" style="font-size:13px"></button></div>' +
@@ -78,10 +83,21 @@
   });
 
   // ---- state --------------------------------------------------------------
-  var S = { power: false, t: tOf(TUNE), band: 'MF', mode: 'AM', audio: true, monitor: false, build: kingLive() ? 'king' : 'mike', playing: null };
+  var savedVol = 0.6;
+  try { var sv = parseFloat(localStorage.getItem('sn.vol')); if (sv >= 0 && sv <= 1) savedVol = sv; } catch (e) {}
+  // vol, sq, clr are knob positions 0..1 (clarifier centre = 0.5)
+  var S = { power: false, t: tOf(TUNE), band: 'MF', mode: 'AM', audio: true, monitor: false, build: kingLive() ? 'king' : 'mike', playing: null,
+            vol: savedVol, sq: 0, clr: 0.5 };
   var fails = 0;
   var set = function (p) { for (var k in p) S[k] = p[k]; render(); };
-  var setT = function (t) { set({ t: Math.max(0, Math.min(1, t)), band: 'MF' }); };
+  // Touching the receiver takes it back from the monitor: the monitor closes, the video stops, the radio returns.
+  var radio = function (p) { p.monitor = false; p.playing = null; set(p); };
+  var setT = function (t) { radio({ t: Math.max(0, Math.min(1, t)), band: 'MF' }); };
+  var setKnob = function (id, v) {
+    var p = {}; p[id] = Math.max(0, Math.min(1, v));
+    if (id === 'vol') { try { localStorage.setItem('sn.vol', p.vol.toFixed(3)); } catch (e) {} }
+    radio(p);
+  };
 
   function tuneInfo() {
     var best = null, bestD = 9;
@@ -90,37 +106,88 @@
   }
 
   // ---- audio (all generated in the browser) -------------------------------
+  // Chain: noise + voice -> master (volume) -> squelch gate -> limiter -> out.
+  // The meter reads the signal, not the speaker, so it still moves at zero volume or with the squelch closed.
   var A = null;
+  var rnd = Math.random;
+  // Carrier strength per station kind (0..1). The unlisted station sits just above the noise floor on purpose.
+  function signalStrength() {
+    if (!S.power || S.band === 'L') return 0;
+    var ti = tuneInfo(), prox = ti.lockedOn ? 1 : (ti.bestD < 0.045 ? 1 - ti.bestD / 0.045 : 0);
+    var k = ti.best.kind, base = k === 'active' ? 0.85 : (k === 'numbers' ? 0.22 : (S.mode !== 'AM' ? 0.5 : 0));
+    return base * prox;
+  }
+  // Each station's sideband has its own clarifier sweet spot, and even the sweet spot is a hair off.
+  function sweetSpot(f) { return 0.5 + (((f * 37) % 100) / 100 - 0.5) * 0.7; }
   function startAudio() {
     var AC = window.AudioContext || window.webkitAudioContext;
     if (!AC) return;
     if (A) { try { A.ac.resume(); } catch (e) {} return; }
     var ac = new AC();
-    var master = ac.createGain(); master.gain.value = 0; master.connect(ac.destination);
+    var limiter = ac.createDynamicsCompressor(); limiter.threshold.value = -10; limiter.ratio.value = 12; limiter.connect(ac.destination);
+    var sqGain = ac.createGain(); sqGain.gain.value = 1; sqGain.connect(limiter);
+    var master = ac.createGain(); master.gain.value = 0; master.connect(sqGain);
     var buf = ac.createBuffer(1, ac.sampleRate * 2, ac.sampleRate), data = buf.getChannelData(0);
-    for (var i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+    for (var i = 0; i < data.length; i++) data[i] = rnd() * 2 - 1;
     var noise = ac.createBufferSource(); noise.buffer = buf; noise.loop = true;
     var nf = ac.createBiquadFilter(); nf.type = 'bandpass'; nf.frequency.value = 1400; nf.Q.value = 0.4;
     var noiseGain = ac.createGain(); noiseGain.gain.value = 0;
     noise.connect(nf); nf.connect(noiseGain); noiseGain.connect(master); noise.start();
+    // voice: buzz through two moving formants, held to the 300-3000 Hz voice band
     var osc = ac.createOscillator(); osc.type = 'sawtooth'; osc.frequency.value = 130;
     var f1 = ac.createBiquadFilter(); f1.type = 'bandpass'; f1.frequency.value = 700; f1.Q.value = 5;
     var f2 = ac.createBiquadFilter(); f2.type = 'bandpass'; f2.frequency.value = 1300; f2.Q.value = 5;
+    var hp = ac.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 300; hp.Q.value = 0.7;
+    var lp = ac.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 3000; lp.Q.value = 0.7;
+    osc.connect(f1); osc.connect(f2); f1.connect(hp); f2.connect(hp); hp.connect(lp);
+    // mistuned SSB = ring modulation; the clarifier slows the ring and lets a little of the straight voice through
     var ring = ac.createGain(); ring.gain.value = 0;
     var carrier = ac.createOscillator(); carrier.type = 'sine'; carrier.frequency.value = 420; carrier.connect(ring.gain);
-    osc.connect(f1); osc.connect(f2); f1.connect(ring); f2.connect(ring);
+    var ringOut = ac.createGain(); ringOut.gain.value = 1;
+    var dry = ac.createGain(); dry.gain.value = 0;
+    lp.connect(ring); ring.connect(ringOut); lp.connect(dry);
     var gate = ac.createGain(); gate.gain.value = 0;
     var voiceGain = ac.createGain(); voiceGain.gain.value = 0;
-    ring.connect(gate); gate.connect(voiceGain); voiceGain.connect(master);
+    ringOut.connect(gate); dry.connect(gate); gate.connect(voiceGain); voiceGain.connect(master);
     osc.start(); carrier.start();
-    setInterval(function () {
+
+    // phrasing: syllables grouped into words and sentences, pitch falling across each sentence, breath pauses between
+    var left = 0, len = 1, pitch = 150;
+    (function syllable() {
       var now = ac.currentTime;
-      osc.frequency.setTargetAtTime(105 + Math.random() * 70, now, 0.03);
-      f1.frequency.setTargetAtTime(300 + Math.random() * 600, now, 0.02);
-      f2.frequency.setTargetAtTime(900 + Math.random() * 1500, now, 0.02);
-      gate.gain.setTargetAtTime(Math.random() < 0.68 ? 1 : 0, now, 0.015);
-    }, 95);
-    A = { ac: ac, master: master, noiseGain: noiseGain, voiceGain: voiceGain, carrier: carrier };
+      if (left <= 0) {
+        len = left = 6 + Math.floor(rnd() * 9); pitch = 130 + rnd() * 40;
+        gate.gain.setTargetAtTime(0, now, 0.03);
+        setTimeout(syllable, 320 + rnd() * 650); return;
+      }
+      var dur = 0.08 + rnd() * 0.15;
+      var p = pitch * (0.78 + 0.32 * (left / len)) * (rnd() < 0.18 ? 1.18 : 1);
+      if (left === 1 && rnd() < 0.3) p *= 1.25; // the odd question
+      osc.frequency.setTargetAtTime(p, now, 0.04);
+      f1.frequency.setTargetAtTime(300 + rnd() * 600, now, 0.02);
+      f2.frequency.setTargetAtTime(900 + rnd() * 1500, now, 0.02);
+      f1.frequency.setTargetAtTime(300 + rnd() * 600, now + dur * 0.5, 0.03); // vowel glide
+      gate.gain.setTargetAtTime(1, now, 0.012);
+      gate.gain.setTargetAtTime(0, now + dur * 0.85, 0.02);
+      left--;
+      var gap = rnd() < 0.3 ? 0.05 + rnd() * 0.1 : 0.012; // gaps between words
+      setTimeout(syllable, (dur + gap) * 1000);
+    })();
+
+    // squelch: open while the received level (signal, or the wandering noise floor) beats the knob; short tail on close
+    var open = true;
+    setInterval(function () {
+      var now = ac.currentTime, sig = signalStrength();
+      var rssi = Math.max(0.12 + (rnd() - 0.5) * 0.08, sig * (1 + (rnd() - 0.5) * 0.12));
+      var o = S.sq < 0.02 || rssi > S.sq;
+      if (o && !open) sqGain.gain.setTargetAtTime(1, now, 0.004);
+      if (!o && open) sqGain.gain.setTargetAtTime(0, now + 0.11, 0.008);
+      open = o;
+      var lamp = $('busy'), lit = S.power && o && S.sq >= 0.02;
+      lamp.style.background = lit ? '#F2C200' : '#2A2922'; lamp.style.boxShadow = lit ? '0 0 8px #F2C200' : 'none';
+    }, 60);
+
+    A = { ac: ac, master: master, noiseGain: noiseGain, voiceGain: voiceGain, carrier: carrier, ringOut: ringOut, dry: dry };
     applyAudio();
   }
   function applyAudio() {
@@ -129,10 +196,15 @@
     var lvl = ti.lockedOn ? 1 : (ti.bestD < 0.045 ? 1 - ti.bestD / 0.045 : 0);
     var live = S.power && S.audio && S.band !== 'L' && !S.monitor;
     var sb = S.mode !== 'AM';
-    A.master.gain.setTargetAtTime(live ? 0.14 : 0, now, 0.08);
-    A.noiseGain.gain.setTargetAtTime(sb ? 0.35 : 0.9 - 0.6 * lvl, now, 0.08);
+    var vol = 0.14 * Math.pow(S.vol / 0.6, 2); // 60% on the knob = the old fixed level
+    A.master.gain.setTargetAtTime(live ? vol : 0, now, 0.08);
+    A.noiseGain.gain.setTargetAtTime(sb ? 0.35 - 0.12 * lvl : 0.9 - 0.6 * lvl, now, 0.08);
     A.voiceGain.gain.setTargetAtTime(sb ? 0.15 + 0.85 * lvl : 0, now, 0.08);
-    A.carrier.frequency.setTargetAtTime(S.mode === 'LSB' ? 230 : 560, now, 0.05);
+    var off = Math.min(1, Math.abs(S.clr - sweetSpot(ti.best.f)) * 1.6);
+    var clarity = 1 - off;
+    A.carrier.frequency.setTargetAtTime((S.mode === 'LSB' ? 0.8 : 1) * (38 + 560 * off), now, 0.05);
+    A.ringOut.gain.setTargetAtTime(1 - 0.45 * clarity * clarity, now, 0.05);
+    A.dry.gain.setTargetAtTime(0.5 * clarity * clarity, now, 0.05);
   }
 
   // ---- render -------------------------------------------------------------
@@ -166,6 +238,11 @@
     $('needle').style.left = locked ? '50%' : pos(S.t);
     $('cap').style.transform = 'rotate(' + (-135 + 270 * S.t).toFixed(1) + 'deg)';
     $('capmark').style.background = on ? '#F2C200' : '#8C887A';
+    SMALL_KNOBS.forEach(function (k) {
+      $('kc-' + k.id).style.transform = 'rotate(' + (-135 + 270 * S[k.id]).toFixed(1) + 'deg)';
+      $('km-' + k.id).style.background = on ? '#F2C200' : '#8C887A';
+      $('k-' + k.id).setAttribute('aria-valuenow', Math.round(S[k.id] * 100));
+    });
 
     $('presets').innerHTML = STATIONS.filter(function (s) { return !s.hidden; }).map(function (s) {
       return btn(s.f + ' kc', on && !locked && lockedOn && best.f === s.f, '', 'data-f="' + s.f + '"');
@@ -275,11 +352,11 @@
   // ---- input --------------------------------------------------------------
   document.addEventListener('click', function (e) {
     var b = e.target.closest('button'); if (!b) return;
-    if (b.id === 'power') { if (!S.power) startAudio(); set({ power: !S.power }); }
+    if (b.id === 'power') { if (!S.power) startAudio(); radio({ power: !S.power }); }
     else if (b.dataset.f) setT(tOf(+b.dataset.f));
-    else if (b.dataset.band) set({ band: S.band === 'L' ? 'MF' : 'L' });
-    else if (b.dataset.mode) set({ mode: b.dataset.mode });
-    else if (b.id === 'audio') set({ audio: !S.audio });
+    else if (b.dataset.band) radio({ band: S.band === 'L' ? 'MF' : 'L' });
+    else if (b.dataset.mode) radio({ mode: b.dataset.mode });
+    else if (b.id === 'audio') radio({ audio: !S.audio });
     else if (b.id === 'openmon') set({ monitor: !S.monitor, playing: null });
     else if (b.dataset.build) set({ build: b.dataset.build, playing: null });
     else if (b.id === 'play') set({ playing: S.build });
@@ -296,6 +373,19 @@
   knob.addEventListener('keydown', function (e) {
     if (e.key === 'ArrowRight' || e.key === 'ArrowUp') { e.preventDefault(); setT(S.t + 0.004); }
     if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') { e.preventDefault(); setT(S.t - 0.004); }
+  });
+
+  // small knobs: drag up/right to turn clockwise, scroll wheel, arrow keys
+  SMALL_KNOBS.forEach(function (k) {
+    var el = $('k-' + k.id), drag = null;
+    el.addEventListener('pointerdown', function (e) { drag = { x: e.clientX, y: e.clientY, v: S[k.id] }; el.setPointerCapture(e.pointerId); });
+    el.addEventListener('pointermove', function (e) { if (drag) setKnob(k.id, drag.v + ((drag.y - e.clientY) + (e.clientX - drag.x)) / 180); });
+    el.addEventListener('pointerup', function (e) { drag = null; try { el.releasePointerCapture(e.pointerId); } catch (x) {} });
+    el.addEventListener('wheel', function (e) { e.preventDefault(); setKnob(k.id, S[k.id] + (e.deltaY < 0 ? 0.03 : -0.03)); }, { passive: false });
+    el.addEventListener('keydown', function (e) {
+      if (e.key === 'ArrowRight' || e.key === 'ArrowUp') { e.preventDefault(); setKnob(k.id, S[k.id] + 0.02); }
+      if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') { e.preventDefault(); setKnob(k.id, S[k.id] - 0.02); }
+    });
   });
 
   render();
