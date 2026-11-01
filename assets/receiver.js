@@ -77,8 +77,8 @@
   var $ = function (id) { return document.getElementById(id); };
   var dial = $('dial');
   MINOR.forEach(function (m) { var d = document.createElement('div'); d.className = 'tick'; d.style.left = pos(tOf(m)); dial.insertBefore(d, $('bandlbl')); });
-  STATIONS.filter(function (s) { return !s.hidden; }).forEach(function (s) {
-    var d = document.createElement('div'); d.className = 'mark'; d.style.left = pos(tOf(s.f));
+  STATIONS.filter(function (s) { return !s.hidden; }).forEach(function (s, i, all) {
+    var d = document.createElement('div'); d.className = 'mark' + (i === 0 ? ' first' : (i === all.length - 1 ? ' last' : '')); d.style.left = pos(tOf(s.f));
     d.innerHTML = '<span>' + s.f + '</span><i></i>'; dial.insertBefore(d, $('bandlbl'));
   });
   // CONELRAD: sets sold 1953-63 carried the Civil Defense triangle at 640 and 1240
@@ -214,7 +214,29 @@
       lamp.style.background = lit ? '#F2C200' : '#2A2922'; lamp.style.boxShadow = lit ? '0 0 8px #F2C200' : 'none';
     }, 60);
 
-    A = { ac: ac, master: master, noiseGain: noiseGain, voiceGain: voiceGain, carrier: carrier, ringOut: ringOut, dry: dry };
+    // 500 kc: automated CW distress, only audible with the BFO on (sideband modes). Slow SOS x3, then a long gap.
+    var bfo = ac.createOscillator(); bfo.type = 'sine'; bfo.frequency.value = 700;
+    var key = ac.createGain(); key.gain.value = 0;
+    var cwGain = ac.createGain(); cwGain.gain.value = 0;
+    bfo.connect(key); key.connect(cwGain); cwGain.connect(master); bfo.start();
+    var DIT = 0.1, MORSE = { S: '...', O: '---' };
+    (function sendCW() {
+      var t = ac.currentTime + 0.05;
+      ['SOS', 'SOS', 'SOS'].forEach(function (word) {
+        word.split('').forEach(function (ch) {
+          MORSE[ch].split('').forEach(function (el) {
+            var len = el === '.' ? DIT : DIT * 3;
+            key.gain.setTargetAtTime(1, t, 0.004); key.gain.setTargetAtTime(0, t + len, 0.004);
+            t += len + DIT;
+          });
+          t += DIT * 2;
+        });
+        t += DIT * 4;
+      });
+      setTimeout(sendCW, (t - ac.currentTime + 6) * 1000);
+    })();
+
+    A = { ac: ac, master: master, noiseGain: noiseGain, voiceGain: voiceGain, carrier: carrier, ringOut: ringOut, dry: dry, bfo: bfo, cwGain: cwGain };
     applyAudio();
   }
   function applyAudio() {
@@ -228,7 +250,10 @@
     var vol = 0.14 * Math.pow(S.vol / 0.6, 2); // 60% on the knob = the old fixed level
     A.master.gain.setTargetAtTime(live ? vol : 0, now, 0.08);
     A.noiseGain.gain.setTargetAtTime(sb ? 0.35 - 0.12 * lvl : 0.9 - 0.6 * lvl, now, 0.08);
-    A.voiceGain.gain.setTargetAtTime(sb ? 0.15 + 0.85 * lvl : 0, now, 0.08);
+    var cw = sb && ti.best.f === 500; // distress watch is Morse, not voice
+    A.voiceGain.gain.setTargetAtTime(sb && !cw ? 0.15 + 0.85 * lvl : 0, now, 0.08);
+    A.cwGain.gain.setTargetAtTime(cw ? 0.35 * lvl : 0, now, 0.08);
+    A.bfo.frequency.setTargetAtTime(Math.max(250, Math.min(1200, (S.mode === 'LSB' ? 600 : 700) + (S.clr - 0.5) * 900)), now, 0.05);
     var off = Math.min(1, Math.abs(S.clr - sweetSpot(ti.best.f)) * 1.6);
     var clarity = 1 - off;
     A.carrier.frequency.setTargetAtTime((S.mode === 'LSB' ? 0.8 : 1) * (38 + 560 * off), now, 0.05);
