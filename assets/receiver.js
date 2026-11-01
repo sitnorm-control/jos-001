@@ -222,7 +222,7 @@
     if (crt.getAttribute('data-k') === key) return;
     crt.setAttribute('data-k', key);
     if (S.playing === S.build && live) {
-      crt.innerHTML = '<iframe src="https://www.youtube-nocookie.com/embed/' + YT[S.build] + '?autoplay=1&rel=0" title="JOS-001 640 kc" referrerpolicy="strict-origin-when-cross-origin" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>';
+      crt.innerHTML = '<iframe src="https://www.youtube.com/embed/' + YT[S.build] + '?autoplay=1&rel=0&playsinline=1" title="JOS-001 640 kc" referrerpolicy="strict-origin-when-cross-origin" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>';
       return;
     }
     var title = S.build === 'king' ? 'v0.1.1 “IVY KING”' : 'v0.1.0 “IVY MIKE”';
