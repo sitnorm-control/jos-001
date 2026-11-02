@@ -93,3 +93,45 @@ footer { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12
 footer .typewriter { font-size: 15px; color: #CFCABB; }
 .hidden { display: none !important; }
 @media (max-width: 560px) { .dial { height: 140px; } }
+
+/* ---- LPT1: dot-matrix runbook printer (paper is the one thing on this site that is not dark) ---- */
+.lpt { display: flex; flex-direction: column; gap: 12px; }
+.lpt-win { position: relative; height: min(560px, 70vh); overflow: auto; border: 1px solid #3A382F; border-radius: 6px;
+  background: radial-gradient(ellipse at 50% 100%, #1C1B15 0%, #0B0B09 70%); scrollbar-width: thin; overscroll-behavior: contain; }
+.lpt-win.free { height: auto; overflow: visible; border-color: transparent; background: none; }
+.lpt-content { position: relative; margin: 0 auto; }
+.lpt-paper { position: relative; margin: 0 auto; display: grid; grid-template-columns: var(--lpt-tr) 1fr var(--lpt-tr);
+  background: #F3F0E4; box-shadow: 0 0 0 1px #D8D3C0, 0 10px 40px rgba(0,0,0,.6);
+  transition: transform .6s cubic-bezier(.2,.8,.2,1), box-shadow .6s; }
+.lpt-paper.torn { transform: translateY(-6px) rotate(-.25deg); box-shadow: 0 0 0 1px #D8D3C0, 0 22px 60px rgba(0,0,0,.75); }
+.lpt-paper::before, .lpt-paper::after { content: ""; position: absolute; left: 0; right: 0; height: 0; border-top: 2px dotted rgba(0,0,0,.28); }
+.lpt-paper::before { top: 0; } .lpt-paper::after { bottom: 0; }
+.lpt-tractor { background-color: #F3F0E4;
+  background-image: radial-gradient(circle at 50% 50%, #0B0B09 0 var(--lpt-hole), #CFC9B4 calc(var(--lpt-hole) + .1px) calc(var(--lpt-hole) + .9px), transparent calc(var(--lpt-hole) + 1px));
+  background-size: 100% calc(var(--lpt-lineH) * 3); background-position: 0 calc(var(--lpt-lineH) * 1.5 - var(--lpt-hole) - 1px); background-repeat: repeat-y; }
+.lpt-tractor.l { border-right: 1.5px dashed rgba(0,0,0,.22); }
+.lpt-tractor.r { border-left: 1.5px dashed rgba(0,0,0,.22); }
+.lpt-text { padding: 0 var(--lpt-mg); position: relative;
+  background: repeating-linear-gradient(to bottom, #F3F0E4 0 calc(var(--lpt-lineH) * 3), #DFEADB calc(var(--lpt-lineH) * 3) calc(var(--lpt-lineH) * 6)); }
+.lpt-text canvas { display: block; }
+.lpt-pad { height: calc(var(--lpt-lineH) * 3); }
+.lpt-padb { height: calc(var(--lpt-lineH) * 12); }
+.lpt-housing { position: sticky; bottom: 0; height: 82px; z-index: 5;
+  background: linear-gradient(#2B2B2B, #161616 30%, #101010); border-top: 1px solid #444;
+  box-shadow: 0 -6px 18px rgba(0,0,0,.7); transition: transform .7s ease-in, opacity .7s; }
+.lpt-housing.gone { transform: translateY(110%); opacity: 0; pointer-events: none; }
+.lpt-win.free .lpt-housing { display: none; }
+.lpt-slot { position: absolute; left: 0; right: 0; top: 0; height: 12px; background: #030303; box-shadow: inset 0 3px 4px rgba(0,0,0,.9); }
+.lpt-ribbon { position: absolute; left: 0; right: 0; top: 5px; height: 2px; background: linear-gradient(90deg,#111,#2a1010,#111); opacity: .8; }
+.lpt-head { position: absolute; top: -6px; width: 30px; height: 20px; margin-left: -15px; border-radius: 2px;
+  background: linear-gradient(#8A8A86,#55554F); border: 1px solid #2A2A28; box-shadow: 0 2px 4px rgba(0,0,0,.8); transition: left .07s linear; }
+.lpt-head::after { content: ""; position: absolute; left: 12px; top: -2px; width: 6px; height: 6px; background: #222; border-radius: 1px; }
+.lpt-head.busy { animation: lpt-buzz .05s linear infinite; }
+@keyframes lpt-buzz { 50% { transform: translateY(.6px); } }
+.lpt-panel { position: absolute; right: 18px; bottom: 14px; display: flex; gap: 18px; align-items: center; font-size: 11px; letter-spacing: .14em; color: #9A9A92; }
+.lpt-badge { position: absolute; left: 18px; bottom: 14px; font-size: 12px; letter-spacing: .3em; color: #7D7D76; }
+.lpt-led { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #1F2A1F; margin-right: 6px; vertical-align: -1px; }
+.lpt-led.on { background: #46E05A; box-shadow: 0 0 8px #46E05A; }
+.lpt-led.blink { animation: lpt-led .5s steps(1) infinite; }
+@keyframes lpt-led { 50% { background: #1F2A1F; box-shadow: none; } }
+@media (max-width: 560px) { .lpt-panel { gap: 10px; right: 10px; font-size: 10px; } .lpt-badge { left: 10px; } }

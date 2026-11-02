@@ -71,6 +71,17 @@
     '<section class="terminal" aria-label="Operator terminal"><span class="lbl">OPERATOR TERMINAL</span><span>&gt; for help type /help</span>' +
       '<form id="term"><label for="cmd">&gt;</label><input id="cmd" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="enter command or passphrase"><button class="send" type="submit">TRANSMIT</button></form>' +
       '<div class="reply"><span id="reply"></span><span class="cursor">_</span></div></section>' +
+    '<section class="lpt hidden" id="lpt" aria-label="Line printer LPT1">' +
+      '<div class="lpt-win" id="lpt-win"><div class="lpt-content" id="lpt-content">' +
+        '<div id="lpt-top"></div>' +
+        '<div class="lpt-paper" id="lpt-paper"><div class="lpt-tractor l"></div><div class="lpt-text" id="lpt-text" role="document"></div><div class="lpt-tractor r"></div></div>' +
+        '<div id="lpt-bot"></div>' +
+        '<div class="lpt-housing" id="lpt-housing"><div class="lpt-slot"><div class="lpt-ribbon"></div><div class="lpt-head" id="lpt-head"></div></div>' +
+          '<div class="lpt-badge">LPT1</div>' +
+          '<div class="lpt-panel"><span><span class="lpt-led on" id="lpt-ledon"></span>ON LINE</span><span><span class="lpt-led on"></span>PAPER</span></div></div>' +
+      '</div></div>' +
+      '<div class="row"><button type="button" class="btn hidden" id="lpt-tear">TEAR OFF</button></div>' +
+    '</section>' +
     '<footer><span class="typewriter">Let us face without panic the reality of our times.</span><span>Every release ships with a runbook. Read the documentation.</span></footer>' +
     '</div></div>';
 
@@ -391,16 +402,360 @@
   var COMMANDS = {
     '/help': 'AVAILABLE: /help /status /log. ALL OTHER COMMANDS REQUIRE CLEARANCE.',
     '/status': 'the algorithm: ON DUTY. The Operator: [REDACTED]. SITUATION: NORMAL.',
-    '/log': 'JOS-001 640 kc ACTIVE. 3 FREQUENCIES PENDING. 1 FREQUENCY NOT LISTED.',
-    '/ivyking': 'AUTH ACCEPTED. OPERATOR LOG 0001. THIS RECEIVER IS NOW ON LISTENING WATCH.\nIN THE EVENT OF A TRANSMISSION, REMAIN TUNED TO THIS STATION OR @SitNormControl.',
-    '/elugelab': 'FILE: OPERATION IVY · ENEWETAK ATOLL · 1952\nMIKE  31 OCT 1952 19:14:59Z · 10.4 MT · SURFACE · ELUGELAB\nKING  15 NOV 1952 23:30:00Z · 500 KT · AIR DROP · RUNIT\nELUGELAB: ISLAND NOT FOUND.'
+    '/log': 'JOS-001 640 kc ACTIVE. 3 FREQUENCIES PENDING. 1 FREQUENCY NOT LISTED.'
   };
-  $('term').addEventListener('submit', function (e) {
+
+  // ---- sealed traffic -------------------------------------------------------
+  // Clearance commands exist here only as salted hashes (assets/sealed.js). A hit derives its own key
+  // from what was typed; the runbook key comes from the passphrase and is kept once earned.
+  var SEALED = window.SN_SEALED || null, KEY_SLOT = 'sn.jos001.lpt', heldKey = null;
+  var subtle = window.crypto && window.crypto.subtle;
+  var te = new TextEncoder(), td = new TextDecoder();
+  function unb64(s) { var b = atob(s), u = new Uint8Array(b.length); for (var i = 0; i < b.length; i++) u[i] = b.charCodeAt(i); return u; }
+  function tob64(u) { var s = ''; u = new Uint8Array(u); for (var i = 0; i < u.length; i++) s += String.fromCharCode(u[i]); return btoa(s); }
+  function hex(buf) { return Array.prototype.map.call(new Uint8Array(buf), function (x) { return ('0' + x.toString(16)).slice(-2); }).join(''); }
+  async function deriveKey(pass, salt) {
+    var base = await subtle.importKey('raw', te.encode(pass), 'PBKDF2', false, ['deriveKey']);
+    return subtle.deriveKey({ name: 'PBKDF2', salt: salt, iterations: SEALED.iter, hash: 'SHA-256' }, base, { name: 'AES-GCM', length: 256 }, true, ['decrypt']);
+  }
+  async function open(box, key) { return td.decode(await subtle.decrypt({ name: 'AES-GCM', iv: unb64(box.iv) }, key, unb64(box.ct))); }
+  async function sealedReply(word) {
+    if (!SEALED || !subtle || !word) return null;
+    var id = hex(await subtle.digest('SHA-256', te.encode(SEALED.ns + word)));
+    var box = SEALED.cmds[id]; if (!box) return null;
+    var reply = await open(box, await deriveKey(word, unb64(box.s)));
+    // does this word also clear the runbook?
+    try {
+      var rk = await deriveKey(word, unb64(SEALED.runbook.s));
+      await open(SEALED.runbook, rk);
+      var raw = tob64(await subtle.exportKey('raw', rk)); heldKey = raw;
+      try { localStorage.setItem(KEY_SLOT, raw); } catch (e) {}
+    } catch (e) {}
+    return reply;
+  }
+  async function releaseRunbook() {
+    var raw = heldKey; if (!raw) { try { raw = localStorage.getItem(KEY_SLOT); } catch (e) {} }
+    if (!raw || !SEALED || !subtle) return null;
+    try {
+      var key = await subtle.importKey('raw', unb64(raw), 'AES-GCM', false, ['decrypt']);
+      return JSON.parse(await open(SEALED.runbook, key));
+    } catch (e) { try { localStorage.removeItem(KEY_SLOT); } catch (x) {} heldKey = null; return null; }
+  }
+
+  // ---- terminal output ------------------------------------------------------
+  var sleep = function (ms) { return new Promise(function (r) { setTimeout(r, ms); }); };
+  var busy = false;
+  async function typeOut(str, speed) {
+    var el = $('reply'), base = el.textContent ? el.textContent + '\n' : '';
+    for (var i = 1; i <= str.length; i++) { el.textContent = base + str.slice(0, i); if (speed) await sleep(speed); }
+    await sleep(220);
+  }
+
+  // ---- LPT1: dot-matrix printer ---------------------------------------------
+  var LPT = (function () {
+    var G = {
+      ' ': '0,0,0,0,0,0,0',
+      '0': '01110,10001,10011,10101,11001,10001,01110', '1': '00100,01100,00100,00100,00100,00100,01110',
+      '2': '01110,10001,00001,00010,00100,01000,11111', '3': '11111,00010,00100,00010,00001,10001,01110',
+      '4': '00010,00110,01010,10010,11111,00010,00010', '5': '11111,10000,11110,00001,00001,10001,01110',
+      '6': '00110,01000,10000,11110,10001,10001,01110', '7': '11111,00001,00010,00100,01000,01000,01000',
+      '8': '01110,10001,10001,01110,10001,10001,01110', '9': '01110,10001,10001,01111,00001,00010,01100',
+      'A': '01110,10001,10001,10001,11111,10001,10001', 'B': '11110,10001,10001,11110,10001,10001,11110',
+      'C': '01110,10001,10000,10000,10000,10001,01110', 'D': '11100,10010,10001,10001,10001,10010,11100',
+      'E': '11111,10000,10000,11110,10000,10000,11111', 'F': '11111,10000,10000,11110,10000,10000,10000',
+      'G': '01110,10001,10000,10111,10001,10001,01111', 'H': '10001,10001,10001,11111,10001,10001,10001',
+      'I': '01110,00100,00100,00100,00100,00100,01110', 'J': '00111,00010,00010,00010,00010,10010,01100',
+      'K': '10001,10010,10100,11000,10100,10010,10001', 'L': '10000,10000,10000,10000,10000,10000,11111',
+      'M': '10001,11011,10101,10101,10001,10001,10001', 'N': '10001,10001,11001,10101,10011,10001,10001',
+      'O': '01110,10001,10001,10001,10001,10001,01110', 'P': '11110,10001,10001,11110,10000,10000,10000',
+      'Q': '01110,10001,10001,10001,10101,10010,01101', 'R': '11110,10001,10001,11110,10100,10010,10001',
+      'S': '01111,10000,10000,01110,00001,00001,11110', 'T': '11111,00100,00100,00100,00100,00100,00100',
+      'U': '10001,10001,10001,10001,10001,10001,01110', 'V': '10001,10001,10001,10001,10001,01010,00100',
+      'W': '10001,10001,10001,10101,10101,10101,01010', 'X': '10001,10001,01010,00100,01010,10001,10001',
+      'Y': '10001,10001,10001,01010,00100,00100,00100', 'Z': '11111,00001,00010,00100,01000,10000,11111',
+      'a': '00000,00000,01110,00001,01111,10001,01111', 'b': '10000,10000,10110,11001,10001,10001,11110',
+      'c': '00000,00000,01110,10000,10000,10001,01110', 'd': '00001,00001,01101,10011,10001,10001,01111',
+      'e': '00000,00000,01110,10001,11111,10000,01110', 'f': '00110,01001,01000,11100,01000,01000,01000',
+      'g': '00000,00000,01111,10001,10001,10001,01111,00001,01110', 'h': '10000,10000,10110,11001,10001,10001,10001',
+      'i': '00100,00000,01100,00100,00100,00100,01110', 'j': '00010,00000,00110,00010,00010,00010,00010,10010,01100',
+      'k': '10000,10000,10010,10100,11000,10100,10010', 'l': '01100,00100,00100,00100,00100,00100,01110',
+      'm': '00000,00000,11010,10101,10101,10101,10101', 'n': '00000,00000,10110,11001,10001,10001,10001',
+      'o': '00000,00000,01110,10001,10001,10001,01110', 'p': '00000,00000,11110,10001,10001,10001,11110,10000,10000',
+      'q': '00000,00000,01111,10001,10001,10001,01111,00001,00001', 'r': '00000,00000,10110,11001,10000,10000,10000',
+      's': '00000,00000,01111,10000,01110,00001,11110', 't': '01000,01000,11100,01000,01000,01001,00110',
+      'u': '00000,00000,10001,10001,10001,10011,01101', 'v': '00000,00000,10001,10001,10001,01010,00100',
+      'w': '00000,00000,10001,10001,10101,10101,01010', 'x': '00000,00000,10001,01010,00100,01010,10001',
+      'y': '00000,00000,10001,10001,10001,10001,01111,00001,01110', 'z': '00000,00000,11111,00010,00100,01000,11111',
+      '.': '00000,00000,00000,00000,00000,01100,01100', ',': '00000,00000,00000,00000,00000,01100,00100,01000',
+      ':': '00000,01100,01100,00000,01100,01100,00000', '-': '00000,00000,00000,11111,00000,00000,00000',
+      '[': '01110,01000,01000,01000,01000,01000,01110', ']': '01110,00010,00010,00010,00010,00010,01110',
+      '?': '01110,10001,00001,00010,00100,00000,00100', '(': '00010,00100,01000,01000,01000,00100,00010',
+      ')': '01000,00100,00010,00010,00010,00100,01000', '/': '00000,00001,00010,00100,01000,10000,00000',
+      '@': '01110,10001,10111,10101,10111,10000,01110', '·': '00000,00000,00000,01100,01100,00000,00000'
+    };
+    var CELL = 6, TOP = 1, OFF_H = 12, CPS = 190, MAXC = 76, PITCH = 1.15, HOUSING = 82;
+    var INK = '#1c1c22', RED = '#b0241c';
+    var win = $('lpt-win'), content = $('lpt-content'), paper = $('lpt-paper'), text = $('lpt-text'), head = $('lpt-head'), housing = $('lpt-housing');
+    var doc = null, lines = [], g = {}, state = 'idle', ac = null, buzz = null, soundOn = function () { return true; };
+
+    // -- reflow: the same runbook at any column count (76 on desktop, ~36-44 on a phone) --
+    function tokens(s) { // words, but a [BRACKETED NOTE] stays in one piece
+      var out = [], re = /\[[^\]]*\]|\S+/g, m; while ((m = re.exec(s))) out.push(m[0]); return out;
+    }
+    function wrap(s, cols, first, cont) {
+      var out = [], cur = first, fresh = true;
+      tokens(s).forEach(function (w) {
+        if (!fresh && cur.length + 1 + w.length > cols) { out.push(cur); cur = cont; fresh = true; }
+        while (w.length > cols - cur.length) { var room = cols - cur.length; out.push(cur + w.slice(0, room)); w = w.slice(room); cur = cont; }
+        cur += (fresh ? '' : ' ') + w; fresh = false;
+      });
+      out.push(cur); return out;
+    }
+    var pad = function (s, n) { while (s.length < n) s += ' '; return s; };
+    function layout(blocks, cols) {
+      var L = [], push = function (arr, b) { arr.forEach(function (t) { L.push({ t: t, b: !!b }); }); };
+      var wide = cols >= 70;
+      blocks.forEach(function (k) {
+        if (k.k === 'gap') L.push({ t: '' });
+        else if (k.k === 'rule') L.push({ t: new Array(cols + 1).join('-') });
+        else if (k.k === 'hdr') {
+          if (k.l.length + 2 + k.r.length <= cols) push([pad(k.l, cols - k.r.length) + k.r], 1);
+          else { push(wrap(k.l, cols, '', ''), 1); push(wrap(k.r, cols, '', ''), 1); }
+        }
+        else if (k.k === 'p') { var ind = new Array((k.i || 0) + 1).join(' '); push(wrap(k.t, cols, ind, ind + (k.i ? '  ' : '')), k.b); }
+        else if (k.k === 'step') {
+          var lead = '  ' + k.n + '. ', hang = wide ? lead.length + 12 : lead.length;
+          var body = (wide ? pad(k.w, 12) : k.w + ' ') + k.t + '  ' + k.note;
+          // keep the word column intact on wide paper: wrap the remainder after it
+          if (wide) { var w0 = wrap(k.t + '  ' + k.note, cols, lead + pad(k.w, 12), new Array(hang + 1).join(' ')); push(w0); }
+          else push(wrap(body, cols, lead, new Array(hang + 1).join(' ')));
+        }
+        else if (k.k === 'lab') {
+          var hang2 = wide ? k.w.length + 2 : 2;
+          push(wrap(k.t, cols, k.w + '  ', new Array(hang2 + 1).join(' ')));
+        }
+        else if (k.k === 'build') {
+          var rowW = 9 + 10 + 21 + k.rows[0][3].length;
+          if (cols >= rowW) {
+            push([pad('VERSION', 9) + pad('CODENAME', 10) + pad('SHOT TIME (Z)', 21) + 'CHECKSUM']);
+            k.rows.forEach(function (r) { push([pad(r[0], 9) + pad(r[1], 10) + pad(r[2], 21) + r[3]]); });
+          } else {
+            // narrow paper: one record per two lines; the checksum's five groups never split
+            push(['VERSION CODENAME SHOT TIME (Z)', '  CHECKSUM']);
+            k.rows.forEach(function (r) {
+              var top = r[0] + '  ' + r[1] + '  ' + r[2];
+              if (top.length <= cols) push([top]); else push([r[0] + '  ' + r[1], '  ' + r[2]]);
+              push(['  ' + r[3]]);
+            });
+          }
+        }
+      });
+      return L;
+    }
+
+    function dotsOf(str) {
+      var out = [], red = false;
+      Array.prototype.forEach.call(str, function (ch, i) {
+        if (ch === '[') red = true;
+        (G[ch] || G['?']).split(',').forEach(function (row, y) { for (var x = 0; x < 5; x++) if (row[x] === '1') out.push({ x: i * CELL + x, y: y + TOP, r: red }); });
+        if (ch === ']') red = false;
+      });
+      return out;
+    }
+
+    function geometry() {
+      var W = win.clientWidth, narrow = W < 620;
+      var tr = narrow ? 18 : 34, mg = narrow ? 10 : 22;
+      var textW = Math.min(900, W - (narrow ? 8 : 24) - 2 * (tr + mg));
+      var cols = textW / (CELL * MAXC) >= PITCH ? MAXC : Math.max(28, Math.floor(textW / (CELL * PITCH)));
+      var scale = Math.min(textW / (cols * CELL), 900 / (MAXC * CELL));
+      textW = cols * CELL * scale;
+      return { tr: tr, mg: mg, cols: cols, scale: scale, textW: textW, lineH: OFF_H * scale, paperW: textW + 2 * (tr + mg) };
+    }
+
+    function build() {
+      g = geometry();
+      var dpr = Math.min(window.devicePixelRatio || 1, 3); g.dpr = dpr;
+      var st = document.documentElement.style;
+      st.setProperty('--lpt-lineH', g.lineH + 'px'); st.setProperty('--lpt-tr', g.tr + 'px'); st.setProperty('--lpt-mg', g.mg + 'px');
+      st.setProperty('--lpt-hole', Math.max(3, g.tr * 0.16) + 'px');
+      paper.style.width = g.paperW + 'px';
+      content.style.width = Math.max(win.clientWidth, g.paperW + 8) + 'px';
+      text.innerHTML = '<div class="lpt-pad"></div>';
+      var flat = layout(doc, g.cols);
+      text.setAttribute('aria-label', flat.map(function (l) { return l.t; }).join('\n'));
+      lines = flat.map(function (d) {
+        var tr = d.t.replace(/\s+$/, ''), first = tr.search(/\S/);
+        var c = document.createElement('canvas');
+        c.width = Math.round(g.textW * dpr); c.height = Math.round(g.lineH * dpr);
+        c.style.width = g.textW + 'px'; c.style.height = g.lineH + 'px';
+        text.appendChild(c);
+        return { d: d, dots: dotsOf(d.t), first: first, last: tr.length - 1, empty: first < 0, ctx: c.getContext('2d'), c: c, seed: Math.random() };
+      });
+      var pb = document.createElement('div'); pb.className = 'lpt-padb'; text.appendChild(pb);
+    }
+    function feedSpace(on) {
+      $('lpt-top').style.height = on ? Math.max(0, win.clientHeight - HOUSING - g.lineH * 4) + 'px' : '12px';
+      $('lpt-bot').style.height = on ? win.clientHeight + 'px' : '12px';
+    }
+    var lineTop = function (i) { return lines[i].c.offsetTop + paper.offsetTop; };
+    var targetFor = function (i) { return lineTop(i) + g.lineH - (win.clientHeight - HOUSING) + 2; };
+    var colX = function (col) { return paper.offsetLeft + g.tr + g.mg + col * CELL * g.scale; };
+
+    function rnd(s) { var x = Math.sin(s * 12.9898) * 43758.5453; return x - Math.floor(x); }
+    function drawDot(L, dot, k) {
+      var ctx = L.ctx, p = g.scale * g.dpr;
+      var fade = 0.78 + 0.22 * rnd(L.seed * 97 + dot.x * 0.13), weak = dot.y === 4 ? 0.72 : 1; // worn ribbon, one tired pin
+      var jx = (rnd(k * 1.7 + L.seed) - 0.5) * 0.16 * p, jy = (rnd(k * 2.3 + L.seed) - 0.5) * 0.16 * p;
+      ctx.fillStyle = dot.r ? RED : INK;
+      ctx.globalAlpha = Math.min(1, fade * weak * (0.82 + 0.18 * rnd(k + L.seed * 7)));
+      var cx = (dot.x + 0.5) * p + jx, cy = (dot.y + 0.5) * p + jy, r = p * 0.4;
+      ctx.beginPath(); ctx.arc(cx, cy, r, 0, 6.2832); ctx.fill();
+      if (L.d.b) { ctx.globalAlpha *= 0.85; ctx.beginPath(); ctx.arc(cx + p * 0.38, cy, r, 0, 6.2832); ctx.fill(); }
+    }
+    function drawAll() { lines.forEach(function (L) { L.dots.forEach(function (d, k) { drawDot(L, d, k); }); }); }
+
+    // -- sound: synthesized, no files --
+    function initAudio() {
+      if (ac) { try { ac.resume(); } catch (e) {} return; }
+      try {
+        var AC = window.AudioContext || window.webkitAudioContext; ac = new AC();
+        var master = ac.createGain(); master.gain.value = 0.45; master.connect(ac.destination);
+        var nb = ac.createBuffer(1, ac.sampleRate, ac.sampleRate), ch = nb.getChannelData(0);
+        for (var i = 0; i < ch.length; i++) ch[i] = Math.random() * 2 - 1;
+        ac._noise = nb; ac._master = master;
+        var n = ac.createBufferSource(); n.buffer = nb; n.loop = true;
+        var bp = ac.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 2600; bp.Q.value = 1.3;
+        var tone = ac.createOscillator(); tone.type = 'square'; tone.frequency.value = 1180;
+        var bp2 = ac.createBiquadFilter(); bp2.type = 'bandpass'; bp2.frequency.value = 1750; bp2.Q.value = 4;
+        var toneG = ac.createGain(); toneG.gain.value = 0.35;
+        var am = ac.createGain(); am.gain.value = 0.6;
+        var lfo = ac.createOscillator(); lfo.type = 'square'; lfo.frequency.value = 74;
+        var lfoG = ac.createGain(); lfoG.gain.value = 0.4; lfo.connect(lfoG); lfoG.connect(am.gain);
+        buzz = ac.createGain(); buzz.gain.value = 0;
+        n.connect(bp); bp.connect(am); tone.connect(bp2); bp2.connect(toneG); toneG.connect(am); am.connect(buzz); buzz.connect(master);
+        n.start(); tone.start(); lfo.start();
+      } catch (e) { ac = null; }
+    }
+    function setBuzz(on) { if (ac && buzz) buzz.gain.setTargetAtTime(on && soundOn() ? 0.2 : 0, ac.currentTime, 0.006); }
+    function thunk() {
+      if (!ac || !soundOn()) return;
+      var s = ac.createBufferSource(); s.buffer = ac._noise;
+      var lp = ac.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 380;
+      var gn = ac.createGain(), t = ac.currentTime;
+      gn.gain.setValueAtTime(0.9, t); gn.gain.exponentialRampToValueAtTime(0.001, t + 0.07);
+      s.connect(lp); lp.connect(gn); gn.connect(ac._master); s.start(t); s.stop(t + 0.08);
+    }
+
+    function run() {
+      return new Promise(function (resolve) {
+        var li = 0, revealed = 0, ptr = 0, phase = 'print', feedT = 0, nonEmpty = 0, reverse = false, last = performance.now();
+        function prep(i) {
+          var L = lines[i]; ptr = 0; revealed = 0;
+          if (!L.empty) {
+            reverse = nonEmpty % 2 === 1; nonEmpty++; // bidirectional head, like the real thing
+            L.order = L.dots.slice().sort(function (a, b) { return reverse ? b.x - a.x : a.x - b.x; });
+            head.style.left = colX(reverse ? L.last + 1 : L.first) + 'px';
+          }
+        }
+        prep(0);
+        function frame(now) {
+          var dt = Math.min(0.05, (now - last) / 1000); last = now;
+          var L = lines[li];
+          if (phase === 'print') {
+            if (L.empty) { phase = 'feed'; feedT = 0.035; }
+            else {
+              setBuzz(true); head.classList.add('busy');
+              revealed += CPS * dt;
+              var span = L.last + 1 - L.first;
+              var edge = reverse ? (L.last + 1 - revealed) * CELL : (L.first + revealed) * CELL;
+              while (ptr < L.order.length && (reverse ? L.order[ptr].x >= edge : L.order[ptr].x <= edge)) { drawDot(L, L.order[ptr], ptr); ptr++; }
+              head.style.left = colX(reverse ? Math.max(L.first, L.last + 1 - revealed) : Math.min(L.last + 1, L.first + revealed)) + 'px';
+              if (revealed >= span && ptr >= L.order.length) { setBuzz(false); head.classList.remove('busy'); phase = 'feed'; feedT = 0.07; thunk(); }
+            }
+          } else {
+            feedT -= dt;
+            if (feedT <= 0) {
+              li++;
+              if (li >= lines.length) { setBuzz(false); head.classList.remove('busy'); resolve(); return; }
+              prep(li); phase = 'print';
+            }
+          }
+          win.scrollTop += (targetFor(Math.min(li, lines.length - 1)) - win.scrollTop) * 0.35; // paper advances
+          requestAnimationFrame(frame);
+        }
+        requestAnimationFrame(frame);
+      });
+    }
+
+    async function print(blocks, sound) {
+      doc = blocks; soundOn = sound; state = 'printing';
+      $('lpt').classList.remove('hidden'); $('lpt-tear').classList.add('hidden');
+      win.classList.remove('free'); housing.classList.remove('gone'); paper.classList.remove('torn');
+      build(); feedSpace(true);
+      win.scrollTop = targetFor(0); head.style.left = colX(0) + 'px';
+      $('lpt').scrollIntoView({ behavior: 'smooth', block: 'end' });
+      await sleep(450);
+      $('lpt-ledon').classList.add('blink');
+      await run();
+      $('lpt-ledon').classList.remove('blink');
+      state = 'printed'; $('lpt-tear').classList.remove('hidden');
+    }
+    function tear() {
+      if (state !== 'printed') return;
+      thunk(); state = 'torn';
+      housing.classList.add('gone'); paper.classList.add('torn'); $('lpt-tear').classList.add('hidden');
+      setTimeout(function () {
+        win.classList.add('free'); feedSpace(false); win.scrollTop = 0;
+        $('lpt').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 650);
+    }
+    $('lpt-tear').addEventListener('click', tear);
+    // re-set the sheet for a new width (phone rotation); the print job never restarts mid-run
+    var rt = null;
+    addEventListener('resize', function () {
+      if (state === 'idle' || state === 'printing') return;
+      clearTimeout(rt); rt = setTimeout(function () {
+        build(); drawAll();
+        if (state === 'printed') { feedSpace(true); win.scrollTop = targetFor(lines.length - 1); } else feedSpace(false);
+      }, 150);
+    });
+    return { print: print, init: initAudio, busy: function () { return state === 'printing'; } };
+  })();
+
+  async function runbookCmd() {
+    var doc = await releaseRunbook();
+    if (!doc) { $('reply').textContent = ''; await typeOut('ACCESS DENIED · AUTHORIZATION REQUIRED.', 8); return; }
+    $('reply').textContent = '';
+    await typeOut('AUTH VERIFIED.', 8);
+    await typeOut('DOCUMENT RELEASED ON PRIOR AUTHORIZATION.', 8);
+    await typeOut('PRINTING JOS-001 RUNBOOK ON LPT1 ...', 8);
+    await LPT.print(doc, function () { return S.audio; });
+    await sleep(300);
+    await typeOut('PRINT COMPLETE · 1 SHEET · TEAR ALONG PERFORATION.', 8);
+  }
+
+  $('term').addEventListener('submit', async function (e) {
     e.preventDefault();
+    if (busy) return;
     var c = $('cmd').value.trim().toLowerCase().replace(/^auth:?\s*/, '');
+    $('cmd').value = '';
+    if (c === '/runbook' || c === 'runbook') {
+      LPT.init(); // inside the tap, so iPhone lets the printer make noise
+      busy = true; fails = 0;
+      try { await runbookCmd(); } finally { busy = false; }
+      return;
+    }
     var r = COMMANDS.hasOwnProperty(c) ? COMMANDS[c] : null;
+    if (r === null) {
+      var word = c.replace(/^\//, '');
+      if (word && SEALED && subtle && /^[a-z0-9]{3,24}$/.test(word)) {
+        busy = true;
+        try { r = await sealedReply(word); } catch (x) { r = null; } finally { busy = false; }
+      }
+    }
     if (r === null) r = fallback(c); else fails = 0;
-    $('reply').textContent = r; $('cmd').value = '';
+    $('reply').textContent = r;
   });
 
   // ---- input --------------------------------------------------------------
