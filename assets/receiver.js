@@ -56,13 +56,13 @@
         '<div class="view play hidden" id="v-play"></div>' +
       '</div>' +
       '<div class="deck">' +
-        '<div class="stack"><button type="button" class="knob" id="knob" aria-label="Tuning knob. Drag to turn, or use the arrow keys."><div class="cap" id="cap"><i id="capmark"></i></div></button><span class="lbl">TUNING</span></div>' +
+        '<div class="stack tuning"><button type="button" class="knob" id="knob" aria-label="Tuning knob. Drag to turn, or use the arrow keys."><div class="cap" id="cap"><i id="capmark"></i></div></button><span class="lbl">TUNING</span></div>' +
         '<div class="smallknobs">' + SMALL_KNOBS.map(function (k) {
           return '<div class="stack"><button type="button" class="knob sm" id="k-' + k.id + '" role="slider" aria-label="' + k.label + '. Drag up or down, scroll, or use the arrow keys." aria-valuemin="0" aria-valuemax="100"><div class="cap" id="kc-' + k.id + '"><i id="km-' + k.id + '"></i></div></button>' +
             '<span class="lbl">' + k.label + '</span>' + (k.id === 'sq' ? '<div style="display:flex;align-items:center;gap:6px"><div class="lamp" id="busy"></div><span class="lbl" style="font-size:10px">BUSY</span></div>' : '') + '</div>';
         }).join('') + '</div>' +
         '<div class="memory"><span class="lbl">MEMORY</span><div class="row" id="presets"></div></div>' +
-        '<div class="stack" style="align-items:flex-start"><span class="lbl">SIDEBAND</span><div class="seg" id="modes"></div>' +
+        '<div class="stack sbctl" style="align-items:flex-start"><span class="lbl">SIDEBAND</span><div class="seg" id="modes"></div>' +
           '<button type="button" class="btn" id="audio" style="font-size:13px"></button></div>' +
         '<div class="switches">' +
           '<div class="stack"><button type="button" class="toggle" id="viewsel" aria-label="Screen selector. Up for radio, down for terminal."><span class="tl" id="tl-radio">RADIO</span><div class="lever"><i></i></div><span class="tl" id="tl-term">TERM</span></button><span class="lbl">SCREEN</span></div>' +
@@ -88,7 +88,7 @@
   var dial = $('dial');
   MINOR.forEach(function (m) { var d = document.createElement('div'); d.className = 'tick'; d.style.left = pos(tOf(m)); dial.insertBefore(d, $('bandlbl')); });
   STATIONS.filter(function (s) { return !s.hidden; }).forEach(function (s, i, all) {
-    var d = document.createElement('div'); d.className = 'mark' + (i === 0 ? ' first' : (i === all.length - 1 ? ' last' : '')); d.style.left = pos(tOf(s.f));
+    var d = document.createElement('div'); d.className = 'mark f' + s.f + (i === 0 ? ' first' : (i === all.length - 1 ? ' last' : '')); d.style.left = pos(tOf(s.f));
     d.innerHTML = '<span>' + s.f + '</span><i></i>'; dial.insertBefore(d, $('bandlbl'));
   });
   // CONELRAD: sets sold 1953-63 carried the Civil Defense triangle at 640 and 1240

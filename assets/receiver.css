@@ -210,3 +210,22 @@ footer .typewriter { font-size: 15px; color: #CFCABB; }
   .power, .toggle { height: 80px; } .power div { height: 30px; }
   footer { font-size: 12px; } footer .typewriter { font-size: 14px; }
 }
+
+/* ---- phone deck (v2.2): the dial face is the tuner on a phone, so the big knob goes; the CRT sizes to what it shows ---- */
+@media (max-width: 560px) {
+  .screen { height: 400px; }
+  .deck .tuning { display: none; }
+  .deck { display: grid; grid-template-columns: 1fr; justify-items: center; gap: 18px; }
+  .memory { width: 100%; max-width: none; }
+  .memory .row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .memory .row .btn { width: 100%; padding: 0 6px; }
+  .deck .sbctl { width: 100%; flex-direction: row; flex-wrap: wrap; align-items: center !important; gap: 8px; }
+  .deck .sbctl .lbl { flex: 0 0 100%; }
+  .deck .sbctl .seg { flex: 1 1 auto; } .deck .sbctl .seg .btn { flex: 1 1 0; }
+  .dial { height: 104px; }
+  .dial .mark span { font-size: 12px; }
+  .dial .mark.first span { transform: translateX(10%); }
+  .dial .mark.f640 span { transform: translateX(30%); }
+  .dial .band { right: 8px; bottom: 3px; font-size: 9px; letter-spacing: 1px; background: #0B0B09; padding: 1px 4px; z-index: 1; }
+  .dial .cd { top: 76px; }
+}
