@@ -44,10 +44,10 @@
       '<div class="screen" id="screen"><div class="lines"></div>' +
         '<div class="view radio" id="v-radio">' +
           '<div class="readout dim" data-dim><div><div class="lbl">FREQUENCY</div><div class="freq" id="freq" aria-live="off"></div></div>' +
+            '<div class="sideband hidden" id="sideband"><span class="lbl" id="sbname"></span><span class="txt" id="sbtext"></span></div>' +
             '<div class="rside"><div class="meter" id="meter" aria-hidden="true"></div><div class="status" id="status"></div></div></div>' +
           '<div class="dial dim" data-dim id="dial"><div class="line"></div><span class="band" id="bandlbl"></span><div class="needle" id="needle"></div></div>' +
           '<div class="rx" id="rx" aria-live="polite"></div>' +
-          '<div class="sideband hidden" id="sideband"><span class="lbl" id="sbname"></span><span class="txt" id="sbtext"></span></div>' +
         '</div>' +
         '<div class="view term hidden" id="v-term" aria-label="Operator terminal">' +
           '<div class="tlog" id="tlog"><div>OPERATOR TERMINAL</div><div>for help type /help</div></div>' +
@@ -876,6 +876,29 @@
     if (e.key === 'ArrowRight' || e.key === 'ArrowUp') { e.preventDefault(); setT(S.t + 0.004); }
     if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') { e.preventDefault(); setT(S.t - 0.004); }
   });
+
+  // the CRT never hides radio traffic: if the radio card runs taller than the screen (a sideband box on a short window),
+  // the screen grows to fit it, and settles back once the card is shorter. Measured once per frame at most.
+  var scr = $('screen'), vr = $('v-radio'), fitQ = false;
+  function fitScreen() {
+    fitQ = false;
+    if (vr.classList.contains('hidden')) { scr.style.height = ''; return; }
+    scr.style.height = '';
+    var need = vr.scrollHeight, have = vr.clientHeight;
+    if (need > have + 1) scr.style.height = (scr.offsetHeight + need - have) + 'px';
+  }
+  function queueFit() { if (!fitQ) { fitQ = true; requestAnimationFrame(fitScreen); } }
+  if ('MutationObserver' in window) new MutationObserver(queueFit).observe(scr, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
+  window.addEventListener('resize', queueFit);
+  queueFit();
+
+  // the dial face tunes too: click to jump the needle, drag to sweep it (the knob follows). Inverse of pos().
+  var dialDrag = false;
+  function dialT(e) { var r = dial.getBoundingClientRect(); return ((e.clientX - r.left) / r.width * 100 - 3) / 94; }
+  dial.addEventListener('pointerdown', function (e) { if (e.button > 0) return; dialDrag = true; dial.setPointerCapture(e.pointerId); setT(dialT(e)); });
+  dial.addEventListener('pointermove', function (e) { if (dialDrag) setT(dialT(e)); });
+  dial.addEventListener('pointerup', function (e) { dialDrag = false; try { dial.releasePointerCapture(e.pointerId); } catch (x) {} });
+  dial.addEventListener('pointercancel', function () { dialDrag = false; });
 
   // small knobs: drag up/right to turn clockwise, scroll wheel, arrow keys
   SMALL_KNOBS.forEach(function (k) {

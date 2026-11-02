@@ -54,7 +54,7 @@ header p { margin: 0; font-size: 11px; letter-spacing: 2px; color: #A9A493; }
 .meter { display: flex; align-items: flex-end; gap: 5px; height: 30px; }
 .meter i { width: 12px; }
 
-.dial { position: relative; flex: 0 0 auto; height: 112px; background: #0B0B09; border: 1px solid #3A382F; border-radius: 4px; overflow: hidden; }
+.dial { cursor: ew-resize; touch-action: pan-y; user-select: none; -webkit-user-select: none; position: relative; flex: 0 0 auto; height: 112px; background: #0B0B09; border: 1px solid #3A382F; border-radius: 4px; overflow: hidden; }
 .dial .line { position: absolute; left: 3%; right: 3%; top: 58px; height: 1px; background: #4A473C; }
 .dial .tick { position: absolute; top: 46px; width: 1px; height: 24px; background: #4A473C; }
 .dial .mark { position: absolute; top: 12px; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 8px; font-size: 13px; color: #CFCABB; }
@@ -73,6 +73,11 @@ header p { margin: 0; font-size: 11px; letter-spacing: 2px; color: #A9A493; }
 .sideband { background: rgba(11,11,9,.8); border: 1px dashed #E8542E; padding: 14px; display: flex; flex-direction: column; gap: 8px; }
 .sideband .lbl { color: #E8542E; }
 .sideband .txt { font-size: 15px; white-space: pre-line; line-height: 1.6; }
+
+/* sideband traffic sits up in the readout, between the counter and the status, so it is never buried under the card */
+.readout .sideband { flex: 1 1 280px; min-width: 0; align-self: stretch; justify-content: center; padding: 8px 12px; gap: 4px; }
+.readout .sideband .lbl { font-size: 11px; }
+.readout .sideband .txt { font-size: 13px; line-height: 1.45; }
 
 /* terminal lives on the same screen */
 .view.term { color: #7FD08A; font-size: 15px; gap: 10px; }
@@ -179,3 +184,29 @@ footer .typewriter { font-size: 15px; color: #CFCABB; }
 .lpt-led.blink { animation: lpt-led .5s steps(1) infinite; }
 @keyframes lpt-led { 50% { background: #1F2A1F; box-shadow: none; } }
 @media (max-width: 560px) { .lpt-panel { gap: 10px; right: 10px; font-size: 10px; } .lpt-badge { left: 10px; } }
+
+/* ---- fit-to-window (v2.1): on a desktop the whole console fits one screen, no scrolling to reach the controls.
+   The CRT gives up height first; the deck tightens up on short windows (laptops, 1366x768-class). ---- */
+@media (min-width: 561px) {
+  .screen { height: clamp(380px, calc(100vh - 300px), 540px); }
+  @supports (height: 100svh) { .screen { height: clamp(380px, calc(100svh - 300px), 540px); } }
+}
+@media (min-width: 561px) and (max-height: 920px) {
+  .wrap { padding: 12px 20px; }
+  .col { gap: 10px; }
+  header svg { width: 32px; height: 32px; }
+  header h1 { font-size: 22px; }
+  .console { padding: 12px 14px; gap: 12px; }
+  .readout { gap: 8px; }
+  .freq svg { height: 40px; }
+  .dial { height: 96px; }
+  .dial .mark { top: 8px; } .dial .line { top: 50px; } .dial .tick { top: 40px; height: 20px; } .dial .cd { top: 70px; }
+  .deck { gap: 12px; align-items: center; }
+  .knob { width: 100px; height: 100px; } .knob .cap { inset: 16px; } .knob .cap i { height: 20px; }
+  .knob.sm { width: 56px; height: 56px; } .knob.sm .cap { inset: 9px; } .knob.sm .cap i { height: 11px; }
+  .stack { gap: 6px; }
+  .btn { min-height: 36px; padding: 0 10px; font-size: 13px; }
+  .memory { gap: 6px; max-width: 300px; } .memory .row { gap: 6px; }
+  .power, .toggle { height: 80px; } .power div { height: 30px; }
+  footer { font-size: 12px; } footer .typewriter { font-size: 14px; }
+}
