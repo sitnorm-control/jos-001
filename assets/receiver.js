@@ -38,13 +38,24 @@
   app.innerHTML =
     '<div class="wrap"><div class="col">' +
     '<header>' + SYMBOL + '<div><h1 class="typewriter">SITUATION NORMAL</h1><p>LISTENING STATION · RECEIVER JOS · TUNE TO AN ACTIVE FREQUENCY</p></div></header>' +
-    '<section class="receiver" aria-label="Receiver">' +
-      '<div class="dim" data-dim style="display:flex;flex-direction:column;gap:24px">' +
-        '<div class="readout"><div><div class="lbl">FREQUENCY</div><div class="freq typewriter" id="freq"></div></div>' +
-        '<div style="text-align:right"><div class="lbl">STATUS</div><div class="status" id="status"></div></div></div>' +
-        '<div class="dial" id="dial"><div class="line"></div><span class="band" id="bandlbl"></span><div class="needle" id="needle"></div></div>' +
+    '<section class="console" aria-label="Receiver">' +
+      '<div class="bezel"><div class="bezel-l"><span class="lbl">MONITOR · JOS-001</span><span class="lbl" id="viewlbl"></span></div>' +
+        '<div class="tally"><i id="tlamp"></i><span id="ttext"></span></div></div>' +
+      '<div class="screen" id="screen"><div class="lines"></div>' +
+        '<div class="view radio" id="v-radio">' +
+          '<div class="readout dim" data-dim><div><div class="lbl">FREQUENCY</div><div class="freq" id="freq" aria-live="off"></div></div>' +
+            '<div class="rside"><div class="meter" id="meter" aria-hidden="true"></div><div class="status" id="status"></div></div></div>' +
+          '<div class="dial dim" data-dim id="dial"><div class="line"></div><span class="band" id="bandlbl"></span><div class="needle" id="needle"></div></div>' +
+          '<div class="rx" id="rx" aria-live="polite"></div>' +
+          '<div class="sideband hidden" id="sideband"><span class="lbl" id="sbname"></span><span class="txt" id="sbtext"></span></div>' +
+        '</div>' +
+        '<div class="view term hidden" id="v-term" aria-label="Operator terminal">' +
+          '<div class="tlog" id="tlog"><div>OPERATOR TERMINAL</div><div>for help type /help</div></div>' +
+          '<form id="term"><label for="cmd">&gt;</label><input id="cmd" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="enter command or passphrase"><button class="send" type="submit">TRANSMIT</button></form>' +
+        '</div>' +
+        '<div class="view play hidden" id="v-play"></div>' +
       '</div>' +
-      '<div class="controls">' +
+      '<div class="deck">' +
         '<div class="stack"><button type="button" class="knob" id="knob" aria-label="Tuning knob. Drag to turn, or use the arrow keys."><div class="cap" id="cap"><i id="capmark"></i></div></button><span class="lbl">TUNING</span></div>' +
         '<div class="smallknobs">' + SMALL_KNOBS.map(function (k) {
           return '<div class="stack"><button type="button" class="knob sm" id="k-' + k.id + '" role="slider" aria-label="' + k.label + '. Drag up or down, scroll, or use the arrow keys." aria-valuemin="0" aria-valuemax="100"><div class="cap" id="kc-' + k.id + '"><i id="km-' + k.id + '"></i></div></button>' +
@@ -53,34 +64,22 @@
         '<div class="memory"><span class="lbl">MEMORY</span><div class="row" id="presets"></div></div>' +
         '<div class="stack" style="align-items:flex-start"><span class="lbl">SIDEBAND</span><div class="seg" id="modes"></div>' +
           '<button type="button" class="btn" id="audio" style="font-size:13px"></button></div>' +
-        '<div class="stack"><button type="button" class="power" id="power" aria-label="Power"><div id="rtop">ON</div><div id="rbot">OFF</div></button>' +
-          '<div style="display:flex;align-items:center;gap:8px"><div class="lamp" id="plamp"></div><span class="lbl">POWER</span></div></div>' +
-      '</div>' +
-      '<div class="sideband hidden" id="sideband"><span class="lbl" id="sbname"></span><span class="txt" id="sbtext"></span></div>' +
-      '<div class="panels dim" data-dim>' +
-        '<div class="panel signal"><span class="lbl">SIGNAL</span><div class="meter" id="meter"></div><span style="font-size:13px;color:#CFCABB" id="meternote"></span></div>' +
-        '<div class="panel receiving"><span class="lbl">RECEIVING</span><div id="rx"></div></div>' +
-        '<div class="monitor hidden" id="monitor"><div class="bar">' +
-          '<div style="display:flex;flex-wrap:wrap;align-items:center;gap:18px"><span class="lbl">MONITOR · JOS-001 · 640 kc</span>' +
-          '<div class="tally"><i id="tlamp"></i><span id="ttext"></span></div></div>' +
-          '<div class="row" id="builds"></div></div>' +
-          '<div class="crt" id="crt"><div class="lines"></div></div>' +
+        '<div class="switches">' +
+          '<div class="stack"><button type="button" class="toggle" id="viewsel" aria-label="Screen selector. Up for radio, down for terminal."><span class="tl" id="tl-radio">RADIO</span><div class="lever"><i></i></div><span class="tl" id="tl-term">TERM</span></button><span class="lbl">SCREEN</span></div>' +
+          '<div class="stack"><button type="button" class="power" id="power" aria-label="Power"><div id="rtop">ON</div><div id="rbot">OFF</div></button>' +
+            '<div style="display:flex;align-items:center;gap:8px"><div class="lamp" id="plamp"></div><span class="lbl">POWER</span></div></div>' +
         '</div>' +
       '</div>' +
     '</section>' +
-    '<section class="terminal" aria-label="Operator terminal"><span class="lbl">OPERATOR TERMINAL</span><span>&gt; for help type /help</span>' +
-      '<form id="term"><label for="cmd">&gt;</label><input id="cmd" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="enter command or passphrase"><button class="send" type="submit">TRANSMIT</button></form>' +
-      '<div class="reply"><span id="reply"></span><span class="cursor">_</span></div></section>' +
-    '<section class="lpt hidden" id="lpt" aria-label="Line printer LPT1">' +
-      '<div class="lpt-win" id="lpt-win"><div class="lpt-content" id="lpt-content">' +
+    '<section class="lpt" id="lpt" aria-label="Line printer LPT1">' +
+      '<div class="lpt-win idle" id="lpt-win"><div class="lpt-content" id="lpt-content">' +
         '<div id="lpt-top"></div>' +
         '<div class="lpt-paper" id="lpt-paper"><div class="lpt-tractor l"></div><div class="lpt-text" id="lpt-text" role="document"></div><div class="lpt-tractor r"></div></div>' +
         '<div id="lpt-bot"></div>' +
-        '<div class="lpt-housing" id="lpt-housing"><div class="lpt-slot"><div class="lpt-ribbon"></div><div class="lpt-head" id="lpt-head"></div></div>' +
+        '<div class="lpt-housing" id="lpt-housing"><div class="lpt-slot"><div class="lpt-ribbon"></div><div class="lpt-head park" id="lpt-head"></div></div>' +
           '<div class="lpt-badge">LPT1</div>' +
-          '<div class="lpt-panel"><span><span class="lpt-led on" id="lpt-ledon"></span>ON LINE</span><span><span class="lpt-led on"></span>PAPER</span></div></div>' +
+          '<div class="lpt-panel"><button type="button" class="btn hidden" id="lpt-tear">TEAR OFF</button><span><span class="lpt-led on" id="lpt-ledon"></span>ON LINE</span><span><span class="lpt-led on"></span>PAPER</span></div></div>' +
       '</div></div>' +
-      '<div class="row"><button type="button" class="btn hidden" id="lpt-tear">TEAR OFF</button></div>' +
     '</section>' +
     '<footer><span class="typewriter">Let us face without panic the reality of our times.</span><span>Every release ships with a runbook. Read the documentation.</span></footer>' +
     '</div></div>';
@@ -104,12 +103,13 @@
   var savedVol = 0.6;
   try { var sv = parseFloat(localStorage.getItem('sn.vol')); if (sv >= 0 && sv <= 1) savedVol = sv; } catch (e) {}
   // vol, sq, clr are knob positions 0..1 (clarifier centre = 0.5)
-  var S = { power: false, t: tOf(TUNE), band: 'MF', mode: 'AM', audio: true, monitor: false, build: kingLive() ? 'king' : 'mike', playing: null,
+  // view: what the one screen shows. 'radio' (dial, or the transmission once PLAY is pressed) or 'term' (operator terminal).
+  var S = { power: false, t: tOf(TUNE), band: 'MF', mode: 'AM', audio: true, view: 'radio', build: kingLive() ? 'king' : 'mike', playing: null,
             vol: savedVol, sq: 0, clr: 0.5 };
   var fails = 0;
   var set = function (p) { for (var k in p) S[k] = p[k]; render(); };
-  // Touching the receiver takes it back from the monitor: the monitor closes, the video stops, the radio returns.
-  var radio = function (p) { p.monitor = false; p.playing = null; set(p); };
+  // Touching the receiver takes the screen back: the video stops, the dial returns.
+  var radio = function (p) { p.playing = null; set(p); };
   var setT = function (t) { radio({ t: Math.max(0, Math.min(1, t)), band: 'MF' }); };
   var setKnob = function (id, v) {
     var p = {}; p[id] = Math.max(0, Math.min(1, v));
@@ -212,16 +212,22 @@
       setTimeout(syllable, (dur + gap) * 1000);
     })();
 
-    // squelch: open while the received level (signal, or the wandering noise floor) beats the knob; short tail on close
-    var open = true;
+    // squelch: open while the received level (signal, or the wandering noise floor) beats the knob.
+    // Hysteresis so the jitter at the threshold doesn't chatter; the close tail is a hold-off, never a
+    // future-scheduled ramp (a reopen scheduled before a pending close would lose to it and stick shut).
+    var open = true, belowSince = 0;
     setInterval(function () {
       var now = ac.currentTime, sig = signalStrength();
       var rssi = Math.max(0.12 + (rnd() - 0.5) * 0.08, sig * (1 + (rnd() - 0.5) * 0.12));
-      var o = S.sq < 0.02 || rssi > S.sq;
-      if (o && !open) sqGain.gain.setTargetAtTime(1, now, 0.004);
-      if (!o && open) sqGain.gain.setTargetAtTime(0, now + 0.11, 0.008);
-      open = o;
-      var lamp = $('busy'), lit = S.power && o && S.sq >= 0.02;
+      var want = S.sq < 0.02 || rssi > (open ? S.sq - 0.04 : S.sq);
+      if (want) {
+        belowSince = 0;
+        if (!open) { sqGain.gain.cancelScheduledValues(now); sqGain.gain.setTargetAtTime(1, now, 0.004); open = true; }
+      } else {
+        if (!belowSince) belowSince = now;
+        if (open && now - belowSince > 0.11) { sqGain.gain.cancelScheduledValues(now); sqGain.gain.setTargetAtTime(0, now, 0.008); open = false; }
+      }
+      var lamp = $('busy'), lit = S.power && open && S.sq >= 0.02;
       lamp.style.background = lit ? '#F2C200' : '#2A2922'; lamp.style.boxShadow = lit ? '0 0 8px #F2C200' : 'none';
     }, 60);
 
@@ -254,13 +260,14 @@
     if (!A) return;
     var now = A.ac.currentTime, ti = tuneInfo();
     var lvl = ti.lockedOn ? 1 : (ti.bestD < 0.045 ? 1 - ti.bestD / 0.045 : 0);
-    var live = S.power && S.audio && S.band !== 'L' && !S.monitor;
+    var live = S.power && S.audio && S.band !== 'L' && !S.playing;
     var sb = S.mode !== 'AM';
-    // let go of the media session while the monitor (YouTube) has the floor; take it back when the radio returns
-    if (keepAlive) { if (S.monitor || !S.power) keepAlive.pause(); else if (keepAlive.paused) holdPlaybackSession(); }
+    // let go of the media session while the transmission (YouTube) has the screen; take it back when the radio returns
+    if (keepAlive) { if (S.playing || !S.power) keepAlive.pause(); else if (keepAlive.paused) holdPlaybackSession(); }
     var vol = 0.14 * Math.pow(S.vol / 0.6, 2); // 60% on the knob = the old fixed level
     A.master.gain.setTargetAtTime(live ? vol : 0, now, 0.08);
-    A.noiseGain.gain.setTargetAtTime(sb ? 0.35 - 0.12 * lvl : 0.9 - 0.6 * lvl, now, 0.08);
+    // full quieting: a strong carrier pushes the hiss down to a faint floor instead of a third
+    A.noiseGain.gain.setTargetAtTime(sb ? 0.35 - 0.29 * lvl : 0.9 - 0.82 * lvl, now, 0.08);
     var cw = sb && ti.best.f === 500; // distress watch is Morse, not voice
     A.voiceGain.gain.setTargetAtTime(sb && !cw ? 0.15 + 0.85 * lvl : 0, now, 0.08);
     A.cwGain.gain.setTargetAtTime(cw ? 0.35 * lvl : 0, now, 0.08);
@@ -270,6 +277,25 @@
     A.carrier.frequency.setTargetAtTime((S.mode === 'LSB' ? 0.8 : 1) * (38 + 560 * off), now, 0.05);
     A.ringOut.gain.setTargetAtTime(1 - 0.45 * clarity * clarity, now, 0.05);
     A.dry.gain.setTargetAtTime(0.5 * clarity * clarity, now, 0.05);
+  }
+
+  // ---- seven-segment readout ----------------------------------------------
+  // a b c d e f g: top, upper right, lower right, bottom, lower left, upper left, middle
+  var SEG = { '0': 'abcdef', '1': 'bc', '2': 'abdeg', '3': 'abcdg', '4': 'bcfg', '5': 'acdfg', '6': 'acdefg', '7': 'abc', '8': 'abcdefg', '9': 'abcdfg', '-': 'g', ' ': '' };
+  var SEGP = { a: '2,0 18,0 20,2 18,4 2,4 0,2', b: '20,2 22,4 22,18 20,20 18,18 18,4', c: '20,20 22,22 22,36 20,38 18,36 18,22',
+               d: '2,36 18,36 20,38 18,40 2,40 0,38', e: '0,22 2,20 4,22 4,36 2,38 0,36', f: '0,2 2,0 4,2 4,18 2,20 0,18', g: '2,18 18,18 20,20 18,22 2,22 0,20' };
+  function sevenSeg(str, unit, on) {
+    var cells = str.split(''), W = 28, out = '<svg viewBox="0 0 ' + (cells.length * W) + ' 40" aria-hidden="true">';
+    cells.forEach(function (ch, i) {
+      var lit = SEG[ch] || '';
+      out += '<g transform="translate(' + (i * W + 2) + ' 0) skewX(-6)">';
+      'abcdefg'.split('').forEach(function (k) {
+        var isOn = on && lit.indexOf(k) !== -1;
+        out += '<polygon points="' + SEGP[k] + '" fill="' + (isOn ? '#F2C200' : '#F2C200') + '" fill-opacity="' + (isOn ? 1 : 0.07) + '"/>';
+      });
+      out += '</g>';
+    });
+    return out + '</svg><span class="unit">' + unit + '</span>';
   }
 
   // ---- render -------------------------------------------------------------
@@ -297,7 +323,10 @@
       else { status = 'NO CARRIER'; sc = '#8C887A'; }
     }
     document.querySelectorAll('[data-dim]').forEach(function (el) { el.style.opacity = on ? '1' : '0.25'; });
-    $('freq').textContent = !on ? '— — —' : (locked ? '1420 Mc' : (lockedOn ? best.f : Math.round(f / 5) * 5) + ' kc');
+    var fs = !on ? '    ' : String(locked ? 1420 : (lockedOn ? best.f : Math.round(f / 5) * 5));
+    while (fs.length < 4) fs = ' ' + fs;
+    var fk = fs + (locked ? 'M' : 'k') + (on ? 1 : 0), fe = $('freq');
+    if (fe.getAttribute('data-k') !== fk) { fe.setAttribute('data-k', fk); fe.innerHTML = sevenSeg(fs, locked ? 'Mc' : 'kc', on); fe.setAttribute('aria-label', on ? fs.trim() + (locked ? ' Mc' : ' kc') : 'off'); }
     var st = $('status'); st.textContent = status; st.style.color = sc; st.style.borderColor = sc;
     $('bandlbl').textContent = locked ? 'BAND L · 1420 Mc' : 'BAND MF/HF · 500–5000 kc';
     $('needle').style.left = locked ? '50%' : pos(S.t);
@@ -329,48 +358,52 @@
       $('sbtext').textContent = bestD < 0.045 ? (S.mode === 'USB' ? best.usb : best.lsb) : 'Unintelligible. Tune closer to a carrier.';
     }
 
-    var meter = ''; for (var i = 0; i < 5; i++) meter += '<i style="height:' + (12 + i * 9) + 'px;background:' + (i < level ? '#F2C200' : '#2A2922') + '"></i>';
+    var meter = ''; for (var i = 0; i < 5; i++) meter += '<i style="height:' + (8 + i * 5) + 'px;background:' + (i < level ? '#F2C200' : '#2A2922') + '"></i>';
     $('meter').innerHTML = meter;
-    $('meternote').textContent = !on ? 'No reading.' : (locked ? (ozma ? 'Faint carrier. Unreadable.' : 'No reading.') : (level >= 5 ? 'Strong. Clear channel.' : (level >= 2 ? 'Rising. Fine-tune.' : 'Noise floor only.')));
+    var meternote = !on ? 'No reading.' : (locked ? (ozma ? 'Faint carrier. Unreadable.' : 'No reading.') : (level >= 5 ? 'Strong. Clear channel.' : (level >= 2 ? 'Rising. Fine-tune.' : 'Noise floor only.')));
 
     var active = on && !locked && lockedOn && best.kind === 'active';
+    var buildLive = S.build === 'mike' || kingLive();
     var rx = '';
     if (!on) rx = '<span style="font-size:18px;color:#8C887A">Receiver off. Throw the power switch.</span>';
-    else if (locked) rx = '<div style="display:flex;flex-direction:column;gap:10px"><span style="font-size:18px;color:#CFCABB">BAND LOCKED</span><span style="font-size:13px;color:#A9A493">1420 Mc. Listening for something that is not on any tracklist. Clearance required.</span></div>';
-    else if (active) rx = '<div style="display:flex;flex-direction:column;gap:12px"><span style="font-size:18px;color:#F2C200">▶ JOS-001 · 640 kc · ' + (kingLive() ? 'v0.1.1 “Ivy King”' : 'v0.1.0 “Ivy Mike”') + '</span><div class="wave" aria-hidden="true">' + WAVE + '</div><span style="font-size:13px;color:#CFCABB">Transmission active. Runbook attached.</span>' +
-      '<button type="button" class="btn on" id="openmon" style="align-self:flex-start;font-weight:600">' + (S.monitor ? 'CLOSE MONITOR' : 'OPEN MONITOR') + '</button></div>';
-    else if (lockedOn && best.kind === 'numbers') rx = '<div style="display:flex;flex-direction:column;gap:10px"><span style="font-size:13px;letter-spacing:2px;color:#E8542E">UNLISTED FREQUENCY · DO NOT LOG</span><span style="font-size:22px;letter-spacing:4px;line-height:1.6">47213 90816 33025 71148<br>06529 18834 52071 69903</span><span style="font-size:13px;color:#A9A493">Message repeats. Key not included.</span></div>';
-    else if (near) rx = '<div style="display:flex;flex-direction:column;gap:10px"><span class="noise" style="color:#CFCABB">· ··▮· ·▮·· ▮ ·· ▮·· · ▮</span><span style="font-size:18px;color:#F2C200">Carrier detected. Keep turning.</span></div>';
-    else rx = '<div style="display:flex;flex-direction:column;gap:10px"><span class="noise">· ·· ·  ··· ·  · ·· ··· ·  ·· · ·</span><span style="font-size:18px;color:#CFCABB">NO CARRIER</span><span style="font-size:13px;color:#A9A493">' + ((lockedOn && best.note) ? best.note : 'Noise floor only. Keep turning.') + '</span></div>';
+    else if (locked) rx = '<div class="card"><span style="font-size:18px;color:#CFCABB">BAND LOCKED</span><span style="font-size:13px;color:#A9A493">1420 Mc. Listening for something that is not on any tracklist. Clearance required.</span></div>';
+    else if (active) {
+      var note = buildLive ? (S.build === 'king' ? 'TRANSMITTED 15 · XI · 2026. Runbook attached.' : 'TRANSMITTED 31 · X · 2026. Runbook attached.') : 'SCHEDULED · 15 · XI · 23:30Z ANNIVERSARY. NOT YET TRANSMITTED.';
+      rx = '<div class="card"><span style="font-size:18px;color:#F2C200">▶ JOS-001 · 640 kc · ' + (S.build === 'king' ? 'v0.1.1 “Ivy King”' : 'v0.1.0 “Ivy Mike”') + '</span><div class="wave" aria-hidden="true">' + WAVE + '</div>' +
+        '<span style="font-size:13px;color:#CFCABB">' + note + '</span>' +
+        '<div class="row">' + btn('v0.1.0 IVY MIKE', S.build === 'mike', '', 'data-build="mike"') + btn('v0.1.1 IVY KING', S.build === 'king', '', 'data-build="king"') +
+        (buildLive ? btn('▶ PLAY TRANSMISSION', true, '', 'id="play" style="font-weight:600"') : '') + '</div></div>';
+    }
+    else if (lockedOn && best.kind === 'numbers') rx = '<div class="card"><span style="font-size:13px;letter-spacing:2px;color:#E8542E">UNLISTED FREQUENCY · DO NOT LOG</span><span style="font-size:22px;letter-spacing:4px;line-height:1.6">47213 90816 33025 71148<br>06529 18834 52071 69903</span><span style="font-size:13px;color:#A9A493">Message repeats. Key not included.</span></div>';
+    else if (near) rx = '<div class="card"><span class="noise" style="color:#CFCABB">· ··▮· ·▮·· ▮ ·· ▮·· · ▮</span><span style="font-size:18px;color:#F2C200">Carrier detected. Keep turning.</span><span style="font-size:13px;color:#A9A493">' + meternote + '</span></div>';
+    else rx = '<div class="card"><span class="noise">· ·· ·  ··· ·  · ·· ··· ·  ·· · ·</span><span style="font-size:18px;color:#CFCABB">NO CARRIER</span><span style="font-size:13px;color:#A9A493">' + ((lockedOn && best.note) ? best.note : meternote) + '</span></div>';
     var rxEl = $('rx'); if (rxEl.getAttribute('data-k') !== rx) { rxEl.innerHTML = rx; rxEl.setAttribute('data-k', rx); }
 
-    var showMon = S.monitor && active;
-    $('monitor').classList.toggle('hidden', !showMon);
-    if (showMon) renderMonitor();
-    applyAudio();
-  }
+    // tally lamp on the bezel: lit while a transmission is on the air at the tuned frequency
+    var tl = $('tlamp'), tt = $('ttext'), lit = active && buildLive;
+    tl.style.background = lit ? '#FF8A2B' : (on ? '#8A1C10' : '#3A2A24');
+    tl.style.boxShadow = lit ? '0 0 6px #FF8A2B, 0 0 16px rgba(255,120,30,.7)' : (on ? '0 0 4px rgba(190,35,20,.55)' : 'none');
+    tl.style.animation = lit ? 'sn-nixie 3.7s linear infinite' : 'none';
+    tt.textContent = lit ? 'TRANSMISSION ACTIVE' : 'STANDING BY';
+    tt.style.color = lit ? '#FF9A40' : '#8A5A50';
+    tt.style.textShadow = lit ? '0 0 8px rgba(255,120,30,.8)' : 'none';
 
-  function renderMonitor() {
-    var live = S.build === 'mike' || kingLive();
-    $('builds').innerHTML = btn('v0.1.0 IVY MIKE', S.build === 'mike', '', 'data-build="mike"') + btn('v0.1.1 IVY KING', S.build === 'king', '', 'data-build="king"');
-    var tl = $('tlamp'), tt = $('ttext');
-    tl.style.background = live ? '#FF8A2B' : '#8A1C10';
-    tl.style.boxShadow = live ? '0 0 6px #FF8A2B, 0 0 16px rgba(255,120,30,.7)' : '0 0 4px rgba(190,35,20,.55), 0 0 9px rgba(160,25,15,.3)';
-    tl.style.animation = live ? 'sn-nixie 3.7s linear infinite' : 'none';
-    tt.textContent = live ? 'TRANSMISSION ACTIVE' : 'STANDING BY';
-    tt.style.color = live ? '#FF9A40' : '#8A5A50';
-    tt.style.textShadow = live ? '0 0 8px rgba(255,120,30,.8)' : 'none';
-    var crt = $('crt'), key = S.build + (S.playing === S.build ? ':play' : '') + (live ? ':live' : '');
-    if (crt.getAttribute('data-k') === key) return;
-    crt.setAttribute('data-k', key);
-    if (S.playing === S.build && live) {
-      crt.innerHTML = '<iframe src="https://www.youtube.com/embed/' + YT[S.build] + '?autoplay=1&rel=0&playsinline=1" title="JOS-001 640 kc" referrerpolicy="strict-origin-when-cross-origin" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>';
-      return;
+    // the one screen: radio, playback, or terminal
+    var playing = S.view === 'radio' && active && buildLive && S.playing === S.build;
+    $('v-radio').classList.toggle('hidden', S.view !== 'radio' || playing);
+    $('v-term').classList.toggle('hidden', S.view !== 'term');
+    $('v-play').classList.toggle('hidden', !playing);
+    $('viewlbl').textContent = S.view === 'term' ? '· TERMINAL' : (playing ? '· PLAYBACK' : '· RADIO');
+    $('viewsel').classList.toggle('term', S.view === 'term');
+    $('viewsel').setAttribute('aria-pressed', S.view === 'term' ? 'true' : 'false');
+    $('tl-radio').classList.toggle('on', S.view === 'radio');
+    $('tl-term').classList.toggle('on', S.view === 'term');
+    var vp = $('v-play'), pk = playing ? S.build : '';
+    if (vp.getAttribute('data-k') !== pk) {
+      vp.setAttribute('data-k', pk);
+      vp.innerHTML = playing ? '<iframe src="https://www.youtube.com/embed/' + YT[S.build] + '?autoplay=1&rel=0&playsinline=1" title="JOS-001 640 kc" referrerpolicy="strict-origin-when-cross-origin" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>' : '';
     }
-    var title = S.build === 'king' ? 'v0.1.1 “IVY KING”' : 'v0.1.0 “IVY MIKE”';
-    var note = live ? (S.build === 'king' ? 'TRANSMITTED 15 · XI · 2026.' : 'TRANSMITTED 31 · X · 2026.') : 'SCHEDULED · 15 · XI · 23:30Z ANNIVERSARY. NOT YET TRANSMITTED.';
-    crt.innerHTML = '<div class="lines"></div><div class="card"><span class="typewriter" style="font-size:28px;color:#F2C200">' + title + '</span><span style="font-size:14px;color:#CFCABB">' + note + '</span>' +
-      (live ? '<button type="button" class="btn on" id="play" style="font-weight:600">PLAY TRANSMISSION</button>' : '') + '</div>';
+    applyAudio();
   }
 
   // ---- terminal -----------------------------------------------------------
@@ -445,9 +478,19 @@
   // ---- terminal output ------------------------------------------------------
   var sleep = function (ms) { return new Promise(function (r) { setTimeout(r, ms); }); };
   var busy = false;
+  // the terminal is a scrollback on the screen: what was typed, then what came back
+  var LOG_MAX = 80;
+  function logLine(text, cls) {
+    var log = $('tlog'), d = document.createElement('div');
+    if (cls) d.className = cls;
+    d.textContent = text; log.appendChild(d);
+    while (log.children.length > LOG_MAX) log.removeChild(log.firstChild);
+    log.scrollTop = log.scrollHeight;
+    return d;
+  }
   async function typeOut(str, speed) {
-    var el = $('reply'), base = el.textContent ? el.textContent + '\n' : '';
-    for (var i = 1; i <= str.length; i++) { el.textContent = base + str.slice(0, i); if (speed) await sleep(speed); }
+    var el = logLine(''), log = $('tlog');
+    for (var i = 1; i <= str.length; i++) { el.textContent = str.slice(0, i); log.scrollTop = log.scrollHeight; if (speed) await sleep(speed); }
     await sleep(220);
   }
 
@@ -688,13 +731,18 @@
       });
     }
 
+    // idle: the head drifts to a new park position now and then, so the printer reads as a machine, not a picture
+    var PARK = 48;
+    function park() { head.classList.add('park'); head.style.left = (PARK + Math.round(Math.random() * 60)) + 'px'; }
+    setInterval(function () { if (state === 'idle' || state === 'torn') park(); }, 9000 + Math.random() * 6000);
+
     async function print(blocks, sound) {
       doc = blocks; soundOn = sound; state = 'printing';
-      $('lpt').classList.remove('hidden'); $('lpt-tear').classList.add('hidden');
-      win.classList.remove('free'); housing.classList.remove('gone'); paper.classList.remove('torn');
+      $('lpt-tear').classList.add('hidden'); head.classList.remove('park');
+      win.classList.remove('idle'); win.classList.remove('free'); paper.classList.remove('torn');
       build(); feedSpace(true);
       win.scrollTop = targetFor(0); head.style.left = colX(0) + 'px';
-      $('lpt').scrollIntoView({ behavior: 'smooth', block: 'end' });
+      $('lpt').scrollIntoView({ behavior: 'smooth', block: 'start' });
       await sleep(450);
       $('lpt-ledon').classList.add('blink');
       await run();
@@ -704,9 +752,9 @@
     function tear() {
       if (state !== 'printed') return;
       thunk(); state = 'torn';
-      housing.classList.add('gone'); paper.classList.add('torn'); $('lpt-tear').classList.add('hidden');
+      paper.classList.add('torn'); $('lpt-tear').classList.add('hidden');
       setTimeout(function () {
-        win.classList.add('free'); feedSpace(false); win.scrollTop = 0;
+        win.classList.add('free'); feedSpace(false); win.scrollTop = 0; park();
         $('lpt').scrollIntoView({ behavior: 'smooth', block: 'start' });
       }, 650);
     }
@@ -723,13 +771,26 @@
     return { print: print, init: initAudio, busy: function () { return state === 'printing'; } };
   })();
 
+  // once clearance is held, the terminal offers the print job as a button on the screen
+  function offerRunbook(line) {
+    if ($('printrb')) return;
+    var d = logLine(line || 'DOCUMENT ON FILE.');
+    var b = document.createElement('button'); b.type = 'button'; b.id = 'printrb'; b.className = 'btn on'; b.style.cssText = 'margin-left:12px;font-weight:600;min-height:36px';
+    b.textContent = 'PRINT RUNBOOK'; d.appendChild(b); $('tlog').scrollTop = $('tlog').scrollHeight;
+  }
+  async function printRunbook() {
+    if (busy) return;
+    LPT.init(); // inside the tap, so iPhone lets the printer make noise
+    busy = true; fails = 0;
+    try { await runbookCmd(); } finally { busy = false; }
+  }
   async function runbookCmd() {
     var doc = await releaseRunbook();
-    if (!doc) { $('reply').textContent = ''; await typeOut('ACCESS DENIED · AUTHORIZATION REQUIRED.', 8); return; }
-    $('reply').textContent = '';
+    if (!doc) { await typeOut('ACCESS DENIED · AUTHORIZATION REQUIRED.', 8); return; }
     await typeOut('AUTH VERIFIED.', 8);
     await typeOut('DOCUMENT RELEASED ON PRIOR AUTHORIZATION.', 8);
     await typeOut('PRINTING JOS-001 RUNBOOK ON LPT1 ...', 8);
+    $('lpt').scrollIntoView({ behavior: 'auto', block: 'start' }); // read the three lines, then snap to the printer
     await LPT.print(doc, function () { return S.audio; });
     await sleep(300);
     await typeOut('PRINT COMPLETE · 1 SHEET · TEAR ALONG PERFORATION.', 8);
@@ -738,15 +799,12 @@
   $('term').addEventListener('submit', async function (e) {
     e.preventDefault();
     if (busy) return;
-    var c = $('cmd').value.trim().toLowerCase().replace(/^auth:?\s*/, '');
+    var raw = $('cmd').value.trim();
+    var c = raw.toLowerCase().replace(/^auth:?\s*/, '');
     $('cmd').value = '';
-    if (c === '/runbook' || c === 'runbook') {
-      LPT.init(); // inside the tap, so iPhone lets the printer make noise
-      busy = true; fails = 0;
-      try { await runbookCmd(); } finally { busy = false; }
-      return;
-    }
-    var r = COMMANDS.hasOwnProperty(c) ? COMMANDS[c] : null;
+    logLine(raw, 'in');
+    if (c === '/runbook' || c === 'runbook') { await printRunbook(); return; } // quiet reprint; never advertised
+    var r = COMMANDS.hasOwnProperty(c) ? COMMANDS[c] : null, hadKey = !!heldKey;
     if (r === null) {
       var word = c.replace(/^\//, '');
       if (word && SEALED && subtle && /^[a-z0-9]{3,24}$/.test(word)) {
@@ -755,10 +813,38 @@
       }
     }
     if (r === null) r = fallback(c); else fails = 0;
-    $('reply').textContent = r;
+    logLine(r);
+    if (heldKey && !hadKey) offerRunbook('DOCUMENT RELEASED.');
   });
+  // a returning listener who already cleared the runbook finds it waiting
+  releaseRunbook().then(function (doc) { if (doc) offerRunbook(); });
+
+  // ---- switch click: a bat-handle toggle, synthesized, inside the tap so phones allow it ----
+  var clickAc = null;
+  function click(down) {
+    try {
+      var AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
+      if (!clickAc) clickAc = new AC(); if (clickAc.state === 'suspended') clickAc.resume();
+      var ac = clickAc, t = ac.currentTime;
+      var n = ac.createBufferSource(), buf = ac.createBuffer(1, Math.floor(ac.sampleRate * 0.03), ac.sampleRate), d = buf.getChannelData(0);
+      for (var i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / d.length, 3);
+      n.buffer = buf;
+      var bp = ac.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = down ? 1900 : 2600; bp.Q.value = 1.2;
+      var g = ac.createGain(); g.gain.setValueAtTime(0.9, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.045);
+      // the body thunk under the snap
+      var o = ac.createOscillator(); o.type = 'sine'; o.frequency.setValueAtTime(down ? 160 : 210, t); o.frequency.exponentialRampToValueAtTime(70, t + 0.05);
+      var og = ac.createGain(); og.gain.setValueAtTime(0.5, t); og.gain.exponentialRampToValueAtTime(0.001, t + 0.06);
+      n.connect(bp); bp.connect(g); g.connect(ac.destination); o.connect(og); og.connect(ac.destination);
+      n.start(t); o.start(t); o.stop(t + 0.07);
+    } catch (e) {}
+  }
 
   // ---- input --------------------------------------------------------------
+  // on a phone the deck sits under the screen; a control that changes the picture brings the screen back up
+  function showScreen() {
+    var r = $('screen').getBoundingClientRect();
+    if (r.top < 0 || r.bottom > innerHeight) $('screen').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
   document.addEventListener('click', function (e) {
     var b = e.target.closest('button'); if (!b) return;
     if (b.id === 'power') { if (!S.power) startAudio(); radio({ power: !S.power }); }
@@ -766,9 +852,16 @@
     else if (b.dataset.band) radio({ band: S.band === 'L' ? 'MF' : 'L' });
     else if (b.dataset.mode) radio({ mode: b.dataset.mode });
     else if (b.id === 'audio') radio({ audio: !S.audio });
-    else if (b.id === 'openmon') set({ monitor: !S.monitor, playing: null });
+    else if (b.id === 'viewsel') { // flipping the selector takes the screen; a playing transmission stops
+      var toTerm = S.view !== 'term';
+      click(toTerm);
+      set({ view: toTerm ? 'term' : 'radio', playing: null });
+      showScreen();
+      if (toTerm) { try { $('cmd').focus({ preventScroll: true }); } catch (x) {} }
+    }
     else if (b.dataset.build) set({ build: b.dataset.build, playing: null });
-    else if (b.id === 'play') set({ playing: S.build });
+    else if (b.id === 'play') { set({ playing: S.build }); showScreen(); }
+    else if (b.id === 'printrb') printRunbook();
   });
   var knob = $('knob'), dragging = false;
   function angle(e) {

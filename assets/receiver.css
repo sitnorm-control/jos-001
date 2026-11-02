@@ -1,4 +1,7 @@
 /* Situation Normal listening station: receiver skin, Cold War campaign.
+   Layout (v2): one console. Bezel, a fixed CRT screen, a control deck under it with the
+   RADIO/TERM selector. The screen is the only thing that changes; the printer is the only
+   thing that ever grows below the console.
    Colour roles (do not mix them in later skins):
      #F2C200 yellow       = station identity, active signal
      #E8542E red-orange   = restricted / locked / unlisted
@@ -14,41 +17,87 @@ button { font-family: inherit; }
 @keyframes sn-pulse { 0%,100% { transform: scaleY(.35) } 50% { transform: scaleY(1) } }
 @keyframes sn-nixie { 0%,100% { opacity: 1 } 47% { opacity: 1 } 48% { opacity: .82 } 50% { opacity: 1 } 91% { opacity: .93 } }
 
-.wrap { min-height: 100vh; padding: 48px 24px; display: flex; justify-content: center; }
-.col { width: 100%; max-width: 1040px; display: flex; flex-direction: column; gap: 28px; }
+.wrap { min-height: 100vh; padding: 22px 20px; display: flex; justify-content: center; }
+.col { width: 100%; max-width: 1000px; display: flex; flex-direction: column; gap: 16px; }
 .lbl { font-size: 12px; letter-spacing: 2px; color: #A9A493; }
 .typewriter { font-family: 'Special Elite', 'Courier New', monospace; font-weight: 400; }
 
-header { display: flex; flex-wrap: wrap; align-items: center; gap: 20px; }
-header h1 { margin: 0; font-size: 40px; letter-spacing: 3px; color: #F2C200; }
-header p { margin: 4px 0 0; font-size: 13px; letter-spacing: 2px; color: #A9A493; }
+header { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; }
+header svg { width: 40px; height: 40px; }
+header div { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 18px; }
+header h1 { margin: 0; font-size: 26px; letter-spacing: 3px; color: #F2C200; }
+header p { margin: 0; font-size: 11px; letter-spacing: 2px; color: #A9A493; }
 
-.receiver { background: #17160F; border: 2px solid #3A382F; border-radius: 6px; padding: 28px; display: flex; flex-direction: column; gap: 24px; }
+/* ---- console: bezel + screen + deck ---- */
+.console { background: #17160F; border: 2px solid #3A382F; border-radius: 6px; padding: 18px; display: flex; flex-direction: column; gap: 18px; }
+.bezel { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px; }
+.bezel-l { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; }
+.tally { display: flex; align-items: center; gap: 10px; padding: 6px 12px; background: #0B0B09; border: 1px solid #3A382F; border-radius: 4px; }
+.tally i { width: 14px; height: 14px; border-radius: 50%; }
+.tally span { font-size: 12px; font-weight: 600; letter-spacing: 2px; }
+
+.screen { position: relative; height: clamp(340px, 56vw, 540px); background: #050505; border-radius: 18px;
+  box-shadow: inset 0 0 70px rgba(0,0,0,.95), 0 0 0 10px #0B0B09; overflow: hidden; }
+.screen .lines { position: absolute; inset: 0; z-index: 3; pointer-events: none;
+  background: repeating-linear-gradient(0deg, rgba(255,255,255,.035) 0, rgba(255,255,255,.035) 1px, transparent 1px, transparent 3px); }
+.view { position: absolute; inset: 0; padding: 22px 26px; display: flex; flex-direction: column; gap: 14px; overflow: auto; scrollbar-width: thin; overscroll-behavior: contain; }
+.view.play { padding: 0; overflow: hidden; }
+.view.play iframe { display: block; width: 100%; height: 100%; border: 0; }
 .dim { transition: opacity .6s ease; }
-.readout { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px; }
-.freq { font-size: 64px; line-height: 1; color: #F2C200; }
-.status { font-size: 18px; font-weight: 600; letter-spacing: 2px; padding: 8px 14px; border: 2px solid; }
 
-.dial { position: relative; height: 120px; background: #0B0B09; border: 1px solid #3A382F; border-radius: 4px; overflow: hidden; }
-.dial .line { position: absolute; left: 3%; right: 3%; top: 60px; height: 1px; background: #4A473C; }
-.dial .tick { position: absolute; top: 48px; width: 1px; height: 24px; background: #4A473C; }
-.dial .mark { position: absolute; top: 14px; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 8px; font-size: 13px; color: #CFCABB; }
+.readout { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px; }
+.freq { display: flex; align-items: baseline; gap: 10px; line-height: 1; }
+.freq svg { height: 52px; width: auto; display: block; filter: drop-shadow(0 0 6px rgba(242,194,0,.55)); }
+.freq .unit { font-size: 18px; letter-spacing: 2px; color: #F2C200; }
+.rside { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
+.status { font-size: 15px; font-weight: 600; letter-spacing: 2px; padding: 6px 12px; border: 2px solid; }
+.meter { display: flex; align-items: flex-end; gap: 5px; height: 30px; }
+.meter i { width: 12px; }
+
+.dial { position: relative; flex: 0 0 auto; height: 112px; background: #0B0B09; border: 1px solid #3A382F; border-radius: 4px; overflow: hidden; }
+.dial .line { position: absolute; left: 3%; right: 3%; top: 58px; height: 1px; background: #4A473C; }
+.dial .tick { position: absolute; top: 46px; width: 1px; height: 24px; background: #4A473C; }
+.dial .mark { position: absolute; top: 12px; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 8px; font-size: 13px; color: #CFCABB; }
 .dial .mark i { width: 2px; height: 40px; background: #CFCABB; }
-.dial .cd { position: absolute; top: 84px; transform: translateX(-50%); line-height: 0; opacity: .9; }
-.dial .band { position: absolute; right: 12px; bottom: 8px; font-size: 11px; letter-spacing: 2px; color: #A9A493; }
-.dial .needle { position: absolute; top: 0; bottom: 0; width: 2px; background: #F2C200; box-shadow: 0 0 14px #F2C200; }
+.dial .mark.first span { transform: translateX(35%); }
+.dial .mark.last span { transform: translateX(-35%); }
+.dial .cd { position: absolute; top: 82px; transform: translateX(-50%); line-height: 0; opacity: .9; }
+.dial .band { position: absolute; right: 12px; bottom: 6px; font-size: 11px; letter-spacing: 2px; color: #A9A493; }
+.dial .needle { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: #F2C200; box-shadow: 0 0 14px #F2C200; }
 
-.controls { display: flex; flex-wrap: wrap; gap: 22px; align-items: center; }
+.rx { flex: 1 0 auto; }
+.wave { display: flex; align-items: center; gap: 4px; height: 32px; }
+.wave i { width: 6px; height: 32px; background: #F2C200; transform-origin: center; animation: sn-pulse .9s ease-in-out infinite; }
+.noise { font-size: 16px; letter-spacing: 6px; color: #8C887A; animation: sn-flicker .4s steps(3) infinite; }
+.card { display: flex; flex-direction: column; gap: 12px; }
+.sideband { background: rgba(11,11,9,.8); border: 1px dashed #E8542E; padding: 14px; display: flex; flex-direction: column; gap: 8px; }
+.sideband .lbl { color: #E8542E; }
+.sideband .txt { font-size: 15px; white-space: pre-line; line-height: 1.6; }
+
+/* terminal lives on the same screen */
+.view.term { color: #7FD08A; font-size: 15px; gap: 10px; }
+.tlog { flex: 1 1 auto; min-height: 0; overflow: auto; display: flex; flex-direction: column; gap: 4px; white-space: pre-wrap; word-break: break-word; scrollbar-width: thin; }
+.tlog .in { color: #CFCABB; }
+.tlog .in::before { content: '> '; color: #F2C200; }
+.view.term form { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin: 0; flex: 0 0 auto; }
+.view.term label { color: #F2C200; }
+.view.term input { flex: 1 1 200px; min-height: 44px; background: #0E0E0C; color: #E8E4D8; border: 1px solid #3A382F; padding: 0 12px; font-family: inherit; font-size: 15px; }
+.view.term .send { min-height: 44px; padding: 0 18px; background: #F2C200; color: #0E0E0C; border: 0; font-weight: 600; font-size: 14px; letter-spacing: 1px; cursor: pointer; }
+.cursor { animation: sn-blink 1s step-end infinite; }
+
+/* control deck */
+.deck { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start; justify-content: center; }
+.switches { display: flex; gap: 12px; align-items: flex-start; }
 .stack { display: flex; flex-direction: column; align-items: center; gap: 10px; }
 .knob { width: 132px; height: 132px; border-radius: 50%; border: 3px solid #5A574A; padding: 0; cursor: grab; touch-action: none; position: relative;
   background: repeating-conic-gradient(#2E2C24 0deg 6deg, #1C1B15 6deg 12deg); box-shadow: 0 6px 18px rgba(0,0,0,.6), inset 0 0 0 10px #17160F; }
 .knob .cap { position: absolute; inset: 22px; border-radius: 50%; background: #23221B; border: 1px solid #4A473C; }
 .knob .cap i { position: absolute; left: 50%; top: 6px; width: 4px; height: 26px; margin-left: -2px; border-radius: 2px; }
-.smallknobs { display: flex; gap: 12px; align-items: flex-start; }
+.smallknobs { display: flex; gap: 10px; align-items: flex-start; }
 .knob.sm { width: 72px; height: 72px; border-width: 2px; box-shadow: 0 4px 12px rgba(0,0,0,.6), inset 0 0 0 6px #17160F; cursor: ns-resize; }
 .knob.sm .cap { inset: 12px; }
 .knob.sm .cap i { top: 4px; width: 3px; height: 14px; margin-left: -1.5px; }
-.memory { display: flex; flex-direction: column; gap: 10px; flex: 1 1 240px; min-width: 0; }
+.memory { display: flex; flex-direction: column; gap: 10px; flex: 1 1 180px; min-width: 0; max-width: 360px; }
 .row { display: flex; flex-wrap: wrap; gap: 8px; }
 .btn { min-height: 44px; padding: 0 14px; font-size: 14px; cursor: pointer; border: 1px solid #5A574A; background: #0E0E0C; color: #CFCABB; }
 .btn.on { background: #F2C200; color: #0E0E0C; }
@@ -58,51 +107,44 @@ header p { margin: 4px 0 0; font-size: 13px; letter-spacing: 2px; color: #A9A493
 .power div { height: 36px; border-radius: 3px; font-size: 11px; font-weight: 600; display: flex; align-items: center; justify-content: center; }
 .lamp { width: 10px; height: 10px; border-radius: 50%; }
 
-.sideband { background: #0B0B09; border: 1px dashed #E8542E; padding: 18px; display: flex; flex-direction: column; gap: 10px; }
-.sideband .lbl { color: #E8542E; }
-.sideband .txt { font-size: 16px; white-space: pre-line; line-height: 1.6; }
-
-.panels { display: flex; flex-wrap: wrap; gap: 16px; }
-.panel { background: #0B0B09; border: 1px solid #3A382F; padding: 18px; display: flex; flex-direction: column; gap: 12px; }
-.signal { flex: 1 1 220px; }
-.meter { display: flex; align-items: flex-end; gap: 6px; height: 48px; }
-.meter i { width: 18px; }
-.receiving { flex: 3 1 360px; min-width: 0; min-height: 150px; }
-.wave { display: flex; align-items: center; gap: 4px; height: 40px; }
-.wave i { width: 6px; height: 40px; background: #F2C200; transform-origin: center; animation: sn-pulse .9s ease-in-out infinite; }
-.noise { font-size: 16px; letter-spacing: 6px; color: #8C887A; animation: sn-flicker .4s steps(3) infinite; }
-
-.monitor { flex: 1 1 100%; background: #1C1B15; border: 2px solid #3A382F; border-radius: 10px; padding: 22px; display: flex; flex-direction: column; gap: 14px; }
-.monitor .bar { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px; }
-.tally { display: flex; align-items: center; gap: 10px; padding: 6px 12px; background: #0B0B09; border: 1px solid #3A382F; border-radius: 4px; }
-.tally i { width: 14px; height: 14px; border-radius: 50%; }
-.tally span { font-size: 12px; font-weight: 600; letter-spacing: 2px; }
-.crt { position: relative; width: 100%; aspect-ratio: 16 / 9; background: #050505; border-radius: 18px; box-shadow: inset 0 0 60px rgba(0,0,0,.9), 0 0 0 10px #0B0B09; overflow: hidden; display: flex; align-items: center; justify-content: center; }
-.crt .lines { position: absolute; inset: 0; pointer-events: none; background: repeating-linear-gradient(0deg, rgba(255,255,255,.035) 0, rgba(255,255,255,.035) 1px, transparent 1px, transparent 3px); }
-.crt .card { position: relative; display: flex; flex-direction: column; align-items: center; gap: 14px; padding: 20px; text-align: center; }
-.crt iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
-
-.terminal { background: #0B0B09; border: 2px solid #3A382F; border-radius: 6px; padding: 24px; display: flex; flex-direction: column; gap: 12px; color: #7FD08A; font-size: 15px; }
-.terminal form { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin: 0; }
-.terminal input { flex: 1 1 260px; min-height: 44px; background: #0E0E0C; color: #E8E4D8; border: 1px solid #3A382F; padding: 0 12px; font-family: inherit; font-size: 15px; }
-.terminal .send { min-height: 44px; padding: 0 18px; background: #F2C200; color: #0E0E0C; border: 0; font-weight: 600; font-size: 14px; letter-spacing: 1px; cursor: pointer; }
-.terminal .reply { min-height: 22px; white-space: pre-wrap; }
-.cursor { animation: sn-blink 1s step-end infinite; }
+/* bat-handle selector: RADIO up, TERM down */
+.toggle { width: 72px; height: 92px; padding: 6px 4px; background: #0B0B09; border: 2px solid #3A382F; border-radius: 6px; cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; justify-content: space-between; color: #6E6B5E; font-size: 10px; letter-spacing: 2px; font-weight: 600; }
+.toggle .tl.on { color: #F2C200; }
+.toggle .lever { position: relative; width: 26px; height: 40px; border-radius: 13px; background: #1C1B15; border: 1px solid #4A473C; box-shadow: inset 0 2px 6px rgba(0,0,0,.8); }
+.toggle .lever i { position: absolute; left: 3px; top: 2px; width: 18px; height: 18px; border-radius: 50%; background: radial-gradient(circle at 40% 35%, #A3A39E, #55554F 70%); box-shadow: 0 2px 4px rgba(0,0,0,.8); transition: top .12s ease-out; }
+.toggle.term .lever i { top: 18px; }
 
 footer { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; font-size: 13px; color: #A9A493; }
 footer .typewriter { font-size: 15px; color: #CFCABB; }
 .hidden { display: none !important; }
-@media (max-width: 560px) { .dial { height: 140px; } }
 
-/* ---- LPT1: dot-matrix runbook printer (paper is the one thing on this site that is not dark) ---- */
-.lpt { display: flex; flex-direction: column; gap: 12px; }
+@media (max-width: 560px) {
+  .wrap { padding: 20px 10px; }
+  .console { padding: 12px; gap: 14px; }
+  .screen { height: clamp(440px, 128vw, 600px); border-radius: 12px; box-shadow: inset 0 0 50px rgba(0,0,0,.95), 0 0 0 6px #0B0B09; }
+  .view { padding: 14px; gap: 12px; }
+  .freq svg { height: 38px; }
+  .freq .unit { font-size: 14px; }
+  header h1 { font-size: 22px; }
+  .rside { flex-direction: row; align-items: center; gap: 10px; }
+  .status { font-size: 13px; padding: 5px 9px; }
+  .dial { height: 92px; }
+  .card { gap: 10px; }
+  .deck { gap: 16px; }
+}
+
+/* ---- LPT1: dot-matrix runbook printer. The housing is always on the desk; paper only shows up when something prints. ---- */
+.lpt { display: flex; flex-direction: column; gap: 0; }
 .lpt-win { position: relative; height: min(560px, 70vh); overflow: auto; border: 1px solid #3A382F; border-radius: 6px;
   background: radial-gradient(ellipse at 50% 100%, #1C1B15 0%, #0B0B09 70%); scrollbar-width: thin; overscroll-behavior: contain; }
+.lpt-win.idle { height: 82px; overflow: hidden; background: none; }
 .lpt-win.free { height: auto; overflow: visible; border-color: transparent; background: none; }
 .lpt-content { position: relative; margin: 0 auto; }
 .lpt-paper { position: relative; margin: 0 auto; display: grid; grid-template-columns: var(--lpt-tr) 1fr var(--lpt-tr);
   background: #F3F0E4; box-shadow: 0 0 0 1px #D8D3C0, 0 10px 40px rgba(0,0,0,.6);
   transition: transform .6s cubic-bezier(.2,.8,.2,1), box-shadow .6s; }
+.lpt-win.idle .lpt-paper { display: none; }
 .lpt-paper.torn { transform: translateY(-6px) rotate(-.25deg); box-shadow: 0 0 0 1px #D8D3C0, 0 22px 60px rgba(0,0,0,.75); }
 .lpt-paper::before, .lpt-paper::after { content: ""; position: absolute; left: 0; right: 0; height: 0; border-top: 2px dotted rgba(0,0,0,.28); }
 .lpt-paper::before { top: 0; } .lpt-paper::after { bottom: 0; }
@@ -116,19 +158,21 @@ footer .typewriter { font-size: 15px; color: #CFCABB; }
 .lpt-text canvas { display: block; }
 .lpt-pad { height: calc(var(--lpt-lineH) * 3); }
 .lpt-padb { height: calc(var(--lpt-lineH) * 12); }
-.lpt-housing { position: sticky; bottom: 0; height: 82px; z-index: 5;
+.lpt-housing { position: sticky; bottom: 0; height: 82px; z-index: 5; border-radius: 0 0 6px 6px;
   background: linear-gradient(#2B2B2B, #161616 30%, #101010); border-top: 1px solid #444;
-  box-shadow: 0 -6px 18px rgba(0,0,0,.7); transition: transform .7s ease-in, opacity .7s; }
-.lpt-housing.gone { transform: translateY(110%); opacity: 0; pointer-events: none; }
-.lpt-win.free .lpt-housing { display: none; }
+  box-shadow: 0 -6px 18px rgba(0,0,0,.7); }
+.lpt-win.idle .lpt-housing { border-top-color: #3A382F; border-radius: 6px; box-shadow: none; }
+.lpt-win.free .lpt-housing { position: relative; margin-top: 10px; border-radius: 6px; }
 .lpt-slot { position: absolute; left: 0; right: 0; top: 0; height: 12px; background: #030303; box-shadow: inset 0 3px 4px rgba(0,0,0,.9); }
 .lpt-ribbon { position: absolute; left: 0; right: 0; top: 5px; height: 2px; background: linear-gradient(90deg,#111,#2a1010,#111); opacity: .8; }
-.lpt-head { position: absolute; top: -6px; width: 30px; height: 20px; margin-left: -15px; border-radius: 2px;
+.lpt-head { position: absolute; top: -6px; left: 48px; width: 30px; height: 20px; margin-left: -15px; border-radius: 2px;
   background: linear-gradient(#8A8A86,#55554F); border: 1px solid #2A2A28; box-shadow: 0 2px 4px rgba(0,0,0,.8); transition: left .07s linear; }
 .lpt-head::after { content: ""; position: absolute; left: 12px; top: -2px; width: 6px; height: 6px; background: #222; border-radius: 1px; }
 .lpt-head.busy { animation: lpt-buzz .05s linear infinite; }
+.lpt-head.park { transition: left 1.1s cubic-bezier(.3,.7,.3,1); }
 @keyframes lpt-buzz { 50% { transform: translateY(.6px); } }
 .lpt-panel { position: absolute; right: 18px; bottom: 14px; display: flex; gap: 18px; align-items: center; font-size: 11px; letter-spacing: .14em; color: #9A9A92; }
+.lpt-panel .btn { min-height: 32px; padding: 0 10px; font-size: 11px; letter-spacing: .14em; }
 .lpt-badge { position: absolute; left: 18px; bottom: 14px; font-size: 12px; letter-spacing: .3em; color: #7D7D76; }
 .lpt-led { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #1F2A1F; margin-right: 6px; vertical-align: -1px; }
 .lpt-led.on { background: #46E05A; box-shadow: 0 0 8px #46E05A; }
