@@ -232,15 +232,25 @@
     }, 60);
 
     // 500 kc: automated CW distress, only audible with the BFO on (sideband modes). Slow SOS x3, then a long gap.
+    // Every third cycle the full call goes out: SOS x3, DE 722 x3, position on the meridian, end of message.
     var bfo = ac.createOscillator(); bfo.type = 'sine'; bfo.frequency.value = 700;
     var key = ac.createGain(); key.gain.value = 0;
     var cwGain = ac.createGain(); cwGain.gain.value = 0;
     bfo.connect(key); key.connect(cwGain); cwGain.connect(master); bfo.start();
-    var DIT = 0.1, MORSE = { S: '...', O: '---' };
+    var DIT = 0.1, MORSE = {
+      S: '...', O: '---', D: '-..', E: '.', N: '-.',
+      '0': '-----', '1': '.----', '2': '..---', '4': '....-', '7': '--...', '8': '---..',
+      '<AR>': '.-.-.'
+    };
+    var SHORT = ['SOS', 'SOS', 'SOS'];
+    var FULL = ['SOS', 'SOS', 'SOS', 'DE', '722', '722', '722', '40N', '180', '<AR>'];
+    var cwCycle = 0;
     (function sendCW() {
       var t = ac.currentTime + 0.05;
-      ['SOS', 'SOS', 'SOS'].forEach(function (word) {
-        word.split('').forEach(function (ch) {
+      var words = (++cwCycle % 3 === 0) ? FULL : SHORT;
+      words.forEach(function (word) {
+        var chars = word.charAt(0) === '<' ? [word] : word.split('');
+        chars.forEach(function (ch) {
           MORSE[ch].split('').forEach(function (el) {
             var len = el === '.' ? DIT : DIT * 3;
             key.gain.setTargetAtTime(1, t, 0.004); key.gain.setTargetAtTime(0, t + len, 0.004);
