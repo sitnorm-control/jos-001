@@ -15,7 +15,7 @@
     { f: 640, kind: 'active',
       usb: 'LOG 19:14:59Z · REEL 2 ROLLING\nCMD FRAGMENT RECEIVED: /iv_ _ _ _ _',
       lsb: 'S&P 3.3 IN EFFECT.\nthe algorithm reports: GRID LOCK HOLDING.' },
-    { f: 1240, kind: 'static', note: 'Scheduled. Hometown relay standing by.',
+    { f: 1240, kind: 'static', note: 'Scheduled. Standing by...',
       usb: 'RELAY TEST · RELAY TEST · DISREGARD\nORIGIN: SOMEWHERE IN THE MIDDLE OF THE MAP',
       lsb: 'ENGINEER 1931' },
     { f: 2182, kind: 'static', note: 'Silence period in effect. Keep listening.',
