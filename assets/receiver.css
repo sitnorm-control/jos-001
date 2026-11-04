@@ -78,6 +78,8 @@ header p { margin: 0; font-size: 11px; letter-spacing: 2px; color: #A9A493; }
 .readout .sideband { flex: 1 1 280px; min-width: 0; align-self: stretch; justify-content: center; padding: 8px 12px; gap: 4px; }
 .readout .sideband .lbl { font-size: 11px; }
 .readout .sideband .txt { font-size: 13px; line-height: 1.45; }
+.sideband .sbnfo { align-self: flex-start; font-size: 11px; letter-spacing: 1px; color: #A9A493; text-decoration: none; }
+.sideband .sbnfo:hover { color: #F2C200; }
 
 /* terminal lives on the same screen */
 .view.term { color: #7FD08A; font-size: 15px; gap: 10px; }

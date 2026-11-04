@@ -17,10 +17,10 @@
       lsb: 'S&P 3.3 IN EFFECT.\nthe algorithm reports: GRID LOCK HOLDING.' },
     { f: 1240, kind: 'static', note: 'Scheduled. Hometown relay standing by.',
       usb: 'RELAY TEST · RELAY TEST · DISREGARD\nORIGIN: SOMEWHERE IN THE MIDDLE OF THE MAP',
-      lsb: 'ENGINEER ON SITE SINCE 1931.' },
+      lsb: 'ENGINEER 1931' },
     { f: 2182, kind: 'static', note: 'Silence period in effect. Keep listening.',
       usb: '. . . . . . . . . .\n(SILENCE IS ALSO A TRANSMISSION)',
-      lsb: 'IF YOU CAN READ THIS, YOU ARE NOT LISTENING.' },
+      lsb: 'IF YOU CAN READ THIS, YOU ARE NOT LISTENING.', lsbLink: { href: '/distribution/SN-0001.html', text: '.nfo' } },
     { f: 3260, kind: 'numbers', hidden: true,
       usb: 'KEY PAGE 07 REFERENCED.\nSEE RUNBOOK.', lsb: 'THIS FREQUENCY DOES NOT EXIST.' },
     { f: 5000, kind: 'static', note: 'Time signal offline. Awaiting final transmission.',
@@ -44,7 +44,7 @@
       '<div class="screen" id="screen"><div class="lines"></div>' +
         '<div class="view radio" id="v-radio">' +
           '<div class="readout dim" data-dim><div><div class="lbl">FREQUENCY</div><div class="freq" id="freq" aria-live="off"></div></div>' +
-            '<div class="sideband hidden" id="sideband"><span class="lbl" id="sbname"></span><span class="txt" id="sbtext"></span></div>' +
+            '<div class="sideband hidden" id="sideband"><span class="lbl" id="sbname"></span><span class="txt" id="sbtext"></span><a class="sbnfo hidden" id="sblink" href="#"></a></div>' +
             '<div class="rside"><div class="meter" id="meter" aria-hidden="true"></div><div class="status" id="status"></div></div></div>' +
           '<div class="dial dim" data-dim id="dial"><div class="line"></div><span class="band" id="bandlbl"></span><div class="needle" id="needle"></div></div>' +
           '<div class="rx" id="rx" aria-live="polite"></div>' +
@@ -357,6 +357,10 @@
       $('sbname').textContent = 'SIDEBAND TRAFFIC · ' + (S.mode === 'USB' ? 'UPPER SIDEBAND' : 'LOWER SIDEBAND');
       $('sbtext').textContent = bestD < 0.045 ? (S.mode === 'USB' ? best.usb : best.lsb) : 'Unintelligible. Tune closer to a carrier.';
     }
+    // plain-sight file link on a sideband (2182 LSB → SN-0001). Same node every frame so clicks land.
+    var sbl = showSb && bestD < 0.045 && (S.mode === 'USB' ? best.usbLink : best.lsbLink), sa = $('sblink');
+    sa.classList.toggle('hidden', !sbl);
+    if (sbl && sa.getAttribute('href') !== sbl.href) { sa.setAttribute('href', sbl.href); sa.textContent = sbl.text; }
 
     var meter = ''; for (var i = 0; i < 5; i++) meter += '<i style="height:' + (8 + i * 5) + 'px;background:' + (i < level ? '#F2C200' : '#2A2922') + '"></i>';
     $('meter').innerHTML = meter;
